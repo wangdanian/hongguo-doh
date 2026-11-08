@@ -1,0 +1,44 @@
+# 红果短剧 · 核心广告域黑名单（core）
+# ============================================================
+# 这份名单**常开生效**，不依赖 App 会话判定。
+# 只放「红果 / 番茄阅读系专属」的广告位 —— 也就是别的 App 根本不会查的域名。
+# 效果：任何 App 都不会被这份名单影响，因为它查不到这些域。
+#
+# 跨 App 通用的广告联盟（穿山甲、百度联盟、巨量、火山引擎 MSSDK）
+# 已全部移到 blacklist-shared.txt —— 那份只在「红果会话窗口」内生效。
+#
+# 为什么要用 ** ：
+#   App 会缓存 CNAME 链，之后直接解析别名拿真实 IP。
+#   例如 ads3-normal-lq.zijieapi.com 的别名是
+#       ads3-normal-lq.zijieapi.com.w.cdngslb.com
+#   只拦原域名会被架空，必须用 ** 连带覆盖 CNAME 目标。
+#   注意 ** 会跨点匹配，只加在很确定的广告域上。
+# ============================================================
+
+# ---------- 1. 阅读系广告请求接口（lq / lf 双集群）----------
+# lq 和 lf 是并行的两套集群，只覆盖 lq 会漏掉一半（2026-11-03 实测）。
+ads3-normal-lq.zijieapi.com**
+ads5-normal-lq.zijieapi.com**
+ads3-normal-lf.zijieapi.com**
+ads5-normal-lf.zijieapi.com**
+
+# ---------- 2. 广告 SDK(MSSDK) 配置 ----------
+mssdk3-normal-lq.zijieapi.com**
+
+# ---------- 3. 广告视频素材 ----------
+# 正片是 *-reading-video.qznovelvod.com，前缀是 v3-/v95-，切勿误伤
+*-reading-ad.qznovelvod.com**
+
+# ============================================================
+# 以下是「不许加进来」的红果自家内容域 —— 拦了会白屏 / 不能播放：
+#   api3-normal-lq.fqnovel.com / api5-normal-lq.fqnovel.com     内容接口
+#   frontier100-toutiao-lq.fqnovel.com                           网关
+#   *-reading-video.qznovelvod.com                               正片
+#   lf3-reading.fqnovelpic.com / *-reading-sign.fqnovelpic.com   封面
+#   p3-novel.byteimg.com / *-novel-sign.byteimg.com              内容图
+#   gecko.zijieapi.com / gecko5-lq.zijieapi.com                  热更新
+#   is.snssdk.com / reading-lq.snssdk.com                        基础服务
+#   bsync3 / saveu5 / polaris5-normal-lq.zijieapi.com            同步/监控/配置
+#   *.w.cdngslb.com / *.kunluncan.com / *.bytedns1.com           共享 CDN
+#      这些只能靠规则结尾的 ** 精确连带，**绝不能直接拦后缀**
+# ============================================================

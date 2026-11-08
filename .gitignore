@@ -1,0 +1,41 @@
+# 运行期数据（含用户令牌、客户端 IP、查询记录）—— 永不入库
+users.json
+doh_log.txt
+*.log
+*.tsv
+*.jsonl
+watch/
+logs/
+reports/
+autodetect-state.json
+autodetect-candidates.json
+public-blocklists/
+.cache.json
+
+# 凭据、私钥、本机配置
+ecs_secrets.local.json
+*_secrets*.json
+!tools/ecs_secrets.example.json
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+
+# 含真实服务器地址的安装产物（examples/ 下的模板除外）
+*.mobileconfig
+!examples/*.mobileconfig
+install-qr.png
+*_b64.txt
+
+# 备份 / 缓存
+*.bak
+*.bak-*
+*.bak[0-9]
+*.push.b64
+__pycache__/
+*.py[cod]
+.DS_Store
+.idea/
+.vscode/

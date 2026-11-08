@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>DNSSettings</key>
+			<dict>
+				<key>DNSProtocol</key>
+				<string>HTTPS</string>
+				<key>ServerURL</key>
+				<string>https://203.0.113.10/u/EXAMPLETOKEN00/dns-query</string>
+			</dict>
+			<key>PayloadDescription</key>
+			<string>把本机 DNS 指向自建 DoH 节点，按域名规则过滤广告。删除本描述文件即可完全恢复原状。</string>
+			<key>PayloadDisplayName</key>
+			<string>去广告 · DNS(IP直连)</string>
+			<key>PayloadIdentifier</key>
+			<string>com.example.hongguo.dns.EXAMPLETOKEN00</string>
+			<key>PayloadType</key>
+			<string>com.apple.dnsSettings.managed</string>
+			<key>PayloadUUID</key>
+			<string>C5D1E7F2-8A30-4B96-9E14-6F2C0D85B3A9</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>FullScreen</key>
+			<false/>
+			<key>Icon</key>
+			<data><!-- 可选：把 examples/webclip-icon.png 做 base64 填到这里 --></data>
+			<key>IsRemovable</key>
+			<true/>
+			<key>Label</key>
+			<string>去广告开关</string>
+			<key>PayloadDescription</key>
+			<string>点开可随时开关过滤、查看拦截数据。</string>
+			<key>PayloadDisplayName</key>
+			<string>去广告开关</string>
+			<key>PayloadIdentifier</key>
+			<string>com.example.hongguo.webclip.EXAMPLETOKEN00</string>
+			<key>PayloadType</key>
+			<string>com.apple.webClip.managed</string>
+			<key>PayloadUUID</key>
+			<string>8B3C1D45-6E27-4A9F-B0D2-1C7E5F3A9B24</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Precomposed</key>
+			<false/>
+			<key>URL</key>
+			<string>https://203.0.113.10/u/EXAMPLETOKEN00</string>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>自建 DoH 广告过滤（专属令牌，独立开关）；桌面图标可随时开关。删除本描述文件即完全恢复原状。</string>
+	<key>PayloadDisplayName</key>
+	<string>去广告(EXAMPLETOKEN00)</string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.hongguo.EXAMPLETOKEN00</string>
+	<key>PayloadOrganization</key>
+	<string>hongguo-doh</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>3F9A2C71-5D48-4B60-9E13-A7C2D8F40B56</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

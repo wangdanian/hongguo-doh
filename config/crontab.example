@@ -1,0 +1,5 @@
+# /etc/cron.d/hongguo-autodetect  （注意 /etc/cron.d 格式必须有 user 字段）
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+*/30 * * * * root flock -n /tmp/autodetect.lock /usr/bin/python3 /opt/hongguo-doh/autodetect.py >> /opt/hongguo-doh/autodetect.log 2>&1

@@ -1,0 +1,59 @@
+# /etc/nginx/snippets/hongguo-doh-locations.conf
+# 所有 server 块 include 这一份，保证 443 / 8443 行为一致。
+# 生产环境建议给 /users 与 /cand/ 加鉴权（下面有注释好的写法）。
+
+    location = /dns-query {
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+        access_log /var/log/nginx/doh-access.log;
+    }
+
+    location ~ ^/u/ {
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+        access_log /var/log/nginx/doh-access.log;
+    }
+
+    location = /issue {
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /users {
+        # auth_basic "admin";
+        # auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /stats {
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 广告自动发现：候选审核页与一键拦截/放行
+    location = /candidates {
+        # auth_basic "admin";
+        # auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location ~ ^/cand/ {
+        # auth_basic "admin";
+        # auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location = /hongguo.mobileconfig {
+        proxy_pass http://127.0.0.1:5053;
+        proxy_set_header X-Real-IP $remote_addr;
+        default_type application/x-apple-aspen-config;
+    }
+
+    location / {
+        root /var/www/hongguo;
+        index index.html;
+        try_files $uri $uri/ =404;
+    }

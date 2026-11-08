@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Compile Python sources
+        run: python3 -m py_compile src/*.py tools/*.py
+
+      - name: Check rule files
+        run: python3 tools/check_rules.py
+
+      - name: Scan for secrets and private data
+        run: python3 tools/check_before_push.py .
+
+      - name: Verify documentation links exist
+        run: |
+          for f in README.md CONTRIBUTING.md CHANGELOG.md SECURITY.md                    docs/DEPLOY.md docs/IOS_PROFILE.md docs/ARCHITECTURE.md                    docs/RULES.md docs/FAQ.md LICENSE; do
+            test -f "$f" || { echo "missing $f"; exit 1; }
+          done

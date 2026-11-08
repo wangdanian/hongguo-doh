@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Hongguo DoH autodetect every 30 minutes
+
+[Timer]
+OnCalendar=*:0/30
+Persistent=true
+Unit=hongguo-autodetect.service
+
+[Install]
+WantedBy=timers.target

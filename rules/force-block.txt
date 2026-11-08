@@ -1,0 +1,10 @@
+# 强制拦截例外（force-block.txt）
+# 优先级：force > 白名单 > 普通黑名单。mtime 热加载，改完立即生效。
+#
+# 用途：白名单是按父域整域放行的（如 amap.com），其下确凿的广告子域
+# 写进 blacklist-shared.txt 会被白名单直接架空，永远拦不住。
+# 这里只放「确认是广告、且被白名单父域保护」的域，命中无条件拦截。
+# 不要往这里放业务域，也不要放整域父域。
+#
+# 2026-11-08：高德开屏广告（日志中 optimus-ads.amap.com.w.alikunlun.com）
+optimus-ads.amap.com**

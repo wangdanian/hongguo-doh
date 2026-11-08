@@ -1,0 +1,49 @@
+name: 漏拦 / 误伤域名
+description: 报告一条新广告域，或一条把正常功能拦坏的规则
+labels: ["rules"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: 类型
+      options:
+        - 漏拦（看到广告）
+        - 误伤（正常功能坏了）
+    validations:
+      required: true
+  - type: input
+    id: domain
+    attributes:
+      label: 域名
+      placeholder: "example-ad.com"
+    validations:
+      required: true
+  - type: input
+    id: window
+    attributes:
+      label: 出现时间窗（精确到分钟）
+      placeholder: "2026-11-08 22:54 - 22:56"
+  - type: input
+    id: app
+    attributes:
+      label: 哪个 App
+      placeholder: "红果 / 抖音 / 微信 ..."
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 日志证据
+      description: "doh_log.txt 里相关行，可用 awk -F'\t' 按时间过滤；请删掉客户端 IP 和令牌"
+      render: shell
+  - type: textarea
+    id: why
+    attributes:
+      label: 判断依据
+      description: "广告视频域 / 轮换上报 / 商品数据 API / 公开名单已收录 / 其它"
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: 确认
+      options:
+        - label: 已确认不是内容 CDN、支付、时间服务或 API 网关
+          required: true
+        - label: 已跑过 tools/verify_rules.py

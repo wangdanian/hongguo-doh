@@ -1,0 +1,23 @@
+[Unit]
+Description=Hongguo DoH ad-filter resolver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/hongguo-doh
+Environment=DOH_BASE_URL=https://203.0.113.10
+Environment=DOH_LISTEN_IP=127.0.0.1
+Environment=DOH_LISTEN_PORT=5053
+Environment=HONGGUO_UPSTREAM=223.5.5.5,119.29.29.29,114.114.114.114
+Environment=WATCH_KEEP_DAYS=30
+ExecStart=/usr/bin/python3 /opt/hongguo-doh/doh_server.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

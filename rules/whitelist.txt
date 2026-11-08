@@ -1,0 +1,121 @@
+# ============================================================
+# 红果短剧去广告 —— 白名单（防误伤兜底）
+# ============================================================
+# 语义：**白名单优先于黑名单**。命中本文件的域名永不拦截。
+#
+# 为什么需要它：
+#   DNS 拦的是域名，不是 App。同一个域名被多个 App 共用时，
+#   无法只拦其中一个。2026-09-20 拦了 `h-adashx.ut.taobao.com`
+#   和 `adashx4yt.m.taobao.com` 之后，淘宝 H5 页面等 ut 埋点通道
+#   返回而卡死不渲染 —— 那就是"淘宝图片加载不出来"的真实原因。
+#   第 8 组规则因此整组停用。
+#
+#   但停用只解决了当下。只要黑名单里再出现一条宽泛规则
+#   （比如 `*taobao*`、`**umeng**`），同样的故障会立刻复发。
+#   本文件是那道保险：关键功能域在这里，无论黑名单怎么改都放行。
+#
+# 语法（与 blacklist.txt 完全一致）：
+#   abc.com        匹配 abc.com 及其所有子域
+#   *-ad.x.com     *  不跨点
+#   ads3.x.com**   ** 跨点，连带覆盖 CNAME 别名
+#
+# ⚠️ 加条目纪律：
+#   只加【纯功能域】。绝不能把混着广告的父域加进来，否则等于
+#   把广告一起放行。反例（禁止添加）：
+#     zijieapi.com    -> ads3/ads5/ad.* 全在这，一放广告全回来
+#     byteimg.com     -> *-ad-sign.byteimg.com 广告素材在这
+#     bytedns1.com    -> 广告 CNAME 的落点，放了等于绕过拦截
+#     cdngslb.com     -> 同上，共享 CDN 落点
+#     volces.com      -> mssdk.volces.com 广告 SDK 在这
+#     baidu.com       -> h2tcbox.baidu.com 是百青藤广告位
+# ============================================================
+
+# ---------- 电商（★ 淘宝那次的教训所在）----------
+# alicdn 是淘宝/天猫/支付宝的全部图片、JS、CSS 来源，纯 CDN 无广告
+alicdn.com
+alicdn.net
+taobao.com
+tmall.com
+alipay.com
+alipayobjects.com
+
+# 京东
+360buyimg.com
+jd.com
+
+# 拼多多
+pddpic.com
+pinduoduo.com
+yangkeduo.com
+
+# 美团 / 大众点评 / 饿了么
+meituan.net
+meituan.com
+dianping.com
+elemecdn.com
+ele.me
+
+# ---------- 社交 / 内容 ----------
+# 腾讯图片与头像（微信朋友圈、公众号、QQ、王者荣耀全靠这几个）
+qpic.cn
+qlogo.cn
+gtimg.cn
+weixin.qq.com
+weixinbridge.com
+
+# 微博
+sinaimg.cn
+weibo.cn
+weibo.com
+
+# 小红书
+xiaohongshu.com
+xhscdn.com
+
+# 知乎
+zhimg.com
+
+# B站
+hdslb.com
+bilivideo.com
+
+# 快手
+yximgs.com
+
+# 抖音（图片/视频，与红果共用字节 CDN，拦了红果也废）
+douyinpic.com
+amemv.com
+
+# 豆瓣 / 网易云音乐 / 爱奇艺
+doubanio.com
+126.net
+iqiyipic.com
+
+# ---------- 字节系功能域（红果自身必需）----------
+# 注意：只放功能域，广告所在的 zijieapi / byteimg 绝不在列
+fqnovel.com
+fqnovelpic.com
+snssdk.com
+bytegecko.com
+bytescm.com
+pstatp.com
+
+# ---------- 搜索 / 地图 ----------
+bdstatic.com
+bdimg.com
+amap.com
+
+# ---------- 推送 / 系统 ----------
+# 拦了会导致推送收不到、App 冷启动拿不到设备令牌
+umeng.com
+umengcloud.com
+jpush.cn
+getui.com
+
+# 苹果自家服务
+apple.com
+icloud.com
+mzstatic.com
+# 微信自用 DNS（NewDNS），autodetect 2026-11-06 误拦后加入
+dns.weixin.qq.com.cn
+#auto:candidate 放行 2026-11-06 01:51

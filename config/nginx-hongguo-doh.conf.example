@@ -1,0 +1,43 @@
+# /etc/nginx/conf.d/99-hongguo-doh.conf
+# 证书路径见 .env.example；IP 证书申请方式见 docs/DEPLOY.md。
+#
+# 关键：iOS 会忽略 ServerURL 里的非标端口，写 :8443 时手机实际连 443。
+# 所以 443 必须是 default_server 且挂有效证书，否则装完描述文件整机断网。
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    http2 on;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:TLS:10m;
+    ssl_session_timeout 1d;
+
+    include snippets/hongguo-doh-locations.conf;
+}
+
+# 兼容端口：有些旧描述文件写了 8443，保留一份同样的 server。
+server {
+    listen 8443 ssl default_server;
+    server_name _;
+
+    ssl_certificate     /etc/nginx/tls/fullchain.pem;
+    ssl_certificate_key /etc/nginx/tls/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    include snippets/hongguo-doh-locations.conf;
+}
+
+# 80 只给 ACME HTTP-01 校验 / 证书续期用。
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    root /var/www/html;
+
+    location /.well-known/acme-challenge/ { allow all; }
+    location / { return 404; }
+}

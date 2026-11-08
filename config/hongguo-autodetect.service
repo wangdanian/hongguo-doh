@@ -1,0 +1,9 @@
+[Unit]
+Description=Hongguo DoH - discover new ad domains
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/hongguo-doh
+ExecStart=/usr/bin/python3 /opt/hongguo-doh/autodetect.py

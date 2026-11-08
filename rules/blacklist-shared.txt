@@ -1,0 +1,791 @@
+# 红果短剧 · 跨 App 共用广告域（shared）—— 常开（2026-11-06 起不再依赖会话窗口）
+# ============================================================
+# 这些域名不归红果独占：穿山甲、百度联盟、巨量引擎是**多个 App 共用**的
+# 广告 SDK，抖音/头条/番茄/各种小游戏都在用。
+#
+# 本文件**常开**（2026-11-06 起）：早期版本按「红果活跃窗口」门控，
+# 结果服务重启 / 窗口过期会出现拦截真空期，那两天漏的广告就是这么来的。
+# 现去掉门控：所有设备、所有 App 的请求一律过本文件。
+# 白名单（whitelist.txt）整域放行仍然优先，防误伤兜底不变；
+# 白名单父域下确凿的广告子域走 force-block.txt 强制例外。
+#
+# 父域整域规则写法（2026-11-08 实测）：
+#   jspcdn.cn**     只匹配「以 jspcdn.cn 开头」的串
+#   **.jspcdn.cn**  才覆盖 xxx.jspcdn.cn 这类随机子域 —— 两条都要写。
+# ============================================================
+
+# ---------- 1. 穿山甲(Pangle)广告联盟 ----------
+# 红果广告的主通道。CNAME 尾巴是共享 CDN，必须 ** 前后包夹。
+# 注意必须写成 **xxx** 两侧都带：只写 **pangolin-sdk 只能匹配「以它结尾」的域名，
+# 而真实域名是 api-access.pangolin-sdk-toutiao-b.com（后面还有 -toutiao-b.com），
+# 只会漏拦。2026-11-03 用真域名回归时发现并修正。
+**pangolin-sdk**
+**pglstatp**
+**pgstatp**
+
+# ---------- 2. 字节 MSSDK 的火山引擎(volces)副本 ----------
+# ⚠️ 绝不能整域名拦 volces.com —— 那是火山引擎公有云，挂着大模型等正经服务。
+mssdk*.volces.com**
+sx-common-v4.volcgtm.com**
+
+# ---------- 3. 广告素材（通用图床上的广告图）----------
+# 内容图是 *-novel-sign.byteimg.com / *-reading-sign.fqnovelpic.com，切勿误伤
+*-mgsdk-sign.byteimg.com**
+*-ad-sign.byteimg.com**
+
+# ---------- 4. 巨量引擎 / 头条广告投放域 ----------
+ad.zijieapi.com**
+ad.toutiao.com**
+ad.oceanengine.com**
+
+# ---------- 5. 百度联盟（百青藤）+ 点击追踪 ----------
+# pan.baidu.com / pcs.baidu.com 是网盘正经服务，**不要**误伤
+h2tcbox.baidu.com**
+h2tcbox.n.shifen.com**
+dig.bdurl.net**
+
+# ---------- 6. 已停用，仅存档（不要启用）----------
+# **qrstuvwxyzab.com**   2026-09-20 推断性加入，63767 行日志里 0 命中，
+#                        且是第三方监测域（NS 在腾讯云），留着只有风险。
+# h-adashx.ut.taobao.com** / adashx4yt.m.taobao.com**
+#                        ★ 就是这两条弄坏淘宝 H5 的，永远别加。
+# **gdt.qq.com / sdk.e.qq.com** / **tanx.com** / **mmstat.com**
+# **doubleclick.net** / **googlesyndication.com** / **appsflyersdk.com
+#                        跨 App 通用联盟，误伤面大，已弃用。
+*-aw-reading-video.qznovelvod.com**
+*-aw-cold.douyinvod.com**
+*-aw-x.douyinvod.com**
+
+
+# ---- autodetect 自动拦截 2026-11-06 01:48（共 40 条）----
+# auto:public:3r6fs2855.com 2026-11-06 01:48
+3r6fs2855.com**
+# auto:public:pkoplink.com 2026-11-06 01:48
+86ktdw1msc383.v1d.pkoplink.com**
+# auto:public:sensorsdata.cn 2026-11-06 01:48
+abtest-tx-beijing-01.saas.sensorsdata.cn**
+# auto:public:abtest.alibaba.com 2026-11-06 01:48
+abtest.alibaba.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+abtest3-misc-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+abtest3-misc-lf.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+abtest3-misc-lq.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+abtest5-misc-lf.zijieapi.com**
+# auto:public:ac.mmstat.com 2026-11-06 01:48
+ac.mmstat.com**
+# auto:public:fancydsp.com 2026-11-06 01:48
+ad-open2.fancydsp.com**
+# auto:public:ads3-normal-hl.zijieapi.com 2026-11-06 01:48
+ads3-normal-hl.zijieapi.com**
+# auto:public:ads5-normal-hl.zijieapi.com 2026-11-06 01:48
+ads5-normal-hl.zijieapi.com**
+# auto:public:wkanx.com 2026-11-06 01:48
+adx-ad-prod.wkanx.com**
+# auto:public:statisticslinks.com 2026-11-06 01:48
+adx-micro.statisticslinks.com**
+# auto:public:adx-strategy-api-cn.statisticslinks.com 2026-11-06 01:48
+adx-strategy-api-cn.statisticslinks.com**
+# auto:public:all.cnzz.com.danuoyi.tbcache.com 2026-11-06 01:48
+all.cnzz.com.danuoyi.tbcache.com**
+# auto:public:apmplus.volces.com 2026-11-06 01:48
+apmplus.volces.com**
+# auto:public:applog.zijieapi.com 2026-11-06 01:48
+applog.zijieapi.com**
+# auto:public:auth.wosms.cn 2026-11-06 01:48
+auth.wosms.cn**
+# auto:public:b-gtc.gepush.com 2026-11-06 01:48
+b-gtc.gepush.com**
+# auto:public:b-gtc.getui.net 2026-11-06 01:48
+b-gtc.getui.net**
+# auto:public:jspcdn.cn 2026-11-06 01:48
+bbvhbbbhjghj.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 01:48
+bbvhbbbhjghv.jspcdn.cn**
+# auto:public:bj-td-menta-01-callback.advlion.com 2026-11-06 01:48
+bj-td-menta-01-callback.advlion.com**
+# auto:public:jspcdn.cn 2026-11-06 01:48
+bqihvvghbdqhgq.jspcdn.cn**
+# auto:public:zijieapi.com 2026-11-06 01:48
+bsync3-normal-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+bsync3-normal-lf.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+bsync3-normal-lq.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+bsync5-normal-lf.zijieapi.com**
+# auto:public:lnk0.com 2026-11-06 01:48
+bv.lnk0.com**
+# auto:public:jspcdn.cn 2026-11-06 01:48
+bvqhvuqhvvehjg.jspcdn.cn**
+# auto:public:c-gtc.getui.net 2026-11-06 01:48
+c-gtc.getui.net**
+# auto:public:gepush.com 2026-11-06 01:48
+c-ido.gepush.com**
+# auto:public:c.51y5.net 2026-11-06 01:48
+c.51y5.net**
+# auto:public:1rtb.com 2026-11-06 01:48
+cdn.1rtb.com**
+# auto:public:51y5.net 2026-11-06 01:48
+check02.51y5.net**
+# auto:public:clientlog.music.163.com 2026-11-06 01:48
+clientlog.music.163.com**
+# auto:public:clientlogdep.music.163.com 2026-11-06 01:48
+clientlogdep.music.163.com**
+# auto:public:clientlogsf.music.163.com 2026-11-06 01:48
+clientlogsf.music.163.com**
+# auto:public:51y5.net 2026-11-06 01:48
+config.51y5.net**
+
+# ---- autodetect 自动拦截 2026-11-06 01:48（共 40 条）----
+# auto:public:config.cmpassport.com 2026-11-06 01:48
+config.cmpassport.com**
+# auto:public:statisticslinks.com 2026-11-06 01:48
+da.statisticslinks.com**
+# auto:public:51y5.net 2026-11-06 01:48
+dcmdaa.51y5.net**
+# auto:public:51y5.net 2026-11-06 01:48
+dcmdae.51y5.net**
+# auto:public:df.tanx.com 2026-11-06 01:48
+df.tanx.com**
+# auto:public:ubixioe.com 2026-11-06 01:48
+e-u1.ubixioe.com**
+# auto:public:ef-dongfeng.tanx.com 2026-11-06 01:48
+ef-dongfeng.tanx.com**
+# auto:public:enrichgw.10010.com 2026-11-06 01:48
+enrichgw.10010.com**
+# auto:public:feedback-c.zijieapi.com 2026-11-06 01:48
+feedback-c.zijieapi.com**
+# auto:public:fp-upload.dun.163.com 2026-11-06 01:48
+fp-upload.dun.163.com**
+# auto:public:g.cn.miaozhen.com 2026-11-06 01:48
+g.cn.miaozhen.com**
+# auto:public:gator.volces.com 2026-11-06 01:48
+gator.volces.com**
+# auto:public:gdfp.gifshow.com 2026-11-06 01:48
+gdfp.gifshow.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko3-gl2.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko5-gl2.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko5-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko5-lf.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+gecko5-lq.zijieapi.com**
+# auto:public:pkoplink.com 2026-11-06 01:48
+gf1xtd9bef111111njz1meotdfyp8smy.v1d.pkoplink.com**
+# auto:public:gj.mmstat.com 2026-11-06 01:48
+gj.mmstat.com**
+# auto:public:jspcdn.cn 2026-11-06 01:48
+gkhvvvhujhvju.jspcdn.cn**
+# auto:public:mmstat.com 2026-11-06 01:48
+gm.mmstat.com**
+# auto:public:pkoplink.com 2026-11-06 01:48
+hjgl1b5fskqek.v1d.pkoplink.com**
+# auto:public:httpdns.music.163.com 2026-11-06 01:48
+httpdns.music.163.com**
+# auto:public:iadmatapk.nosdn.127.net 2026-11-06 01:48
+iadmatapk.nosdn.127.net**
+# auto:public:id6.me 2026-11-06 01:48
+id6.me**
+# auto:public:gepush.com 2026-11-06 01:48
+ido.gepush.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+imapi-oth.zijieapi.com**
+# auto:public:51y5.net 2026-11-06 01:48
+init.51y5.net**
+# auto:public:51y5.net 2026-11-06 01:48
+ios-dc.51y5.net**
+# auto:public:51y5.net 2026-11-06 01:48
+ios-init.51y5.net**
+# auto:public:zhangyuyidong.cn 2026-11-06 01:48
+iosid.zhangyuyidong.cn**
+# auto:public:51y5.net 2026-11-06 01:48
+kepler.51y5.net**
+# auto:public:zijieapi.com 2026-11-06 01:48
+keyhub.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:48
+live-player-log.zijieapi.com**
+# auto:public:log-auth.zztfly.com 2026-11-06 01:48
+log-auth.zztfly.com**
+# auto:public:mmstat.com 2026-11-06 01:48
+log.mmstat.com**
+# auto:public:log1.cmpassport.com 2026-11-06 01:48
+log1.cmpassport.com**
+
+# ---- autodetect 自动拦截 2026-11-06 01:50（共 40 条）----
+# auto:public:loggw.alipaydns.com 2026-11-06 01:50
+loggw.alipaydns.com**
+# auto:public:logrcv.yunxish.com 2026-11-06 01:50
+logrcv.yunxish.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+ma.zijieapi.com**
+# auto:public:51y5.net 2026-11-06 01:50
+miniapp.51y5.net**
+# auto:public:zijieapi.com 2026-11-06 01:50
+minigame5-normal-lf.zijieapi.com**
+# auto:public:mobads-pre-config.cdn.bcebos.com 2026-11-06 01:50
+mobads-pre-config.cdn.bcebos.com**
+# auto:public:mon.zijieapi.com 2026-11-06 01:50
+mon.zijieapi.com**
+# auto:public:statisticslinks.com 2026-11-06 01:50
+mores.statisticslinks.com**
+# auto:public:mores.toponad.com 2026-11-06 01:50
+mores.toponad.com**
+# auto:public:msg.qy.net 2026-11-06 01:50
+msg.qy.net**
+# auto:public:zijieapi.com 2026-11-06 01:50
+mssdk3-normal-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+mssdk3-normal-lf.zijieapi.com**
+# auto:bytedance-fingerprint 2026-11-06 01:50
+mssdk3-normal-lf.zijieapi.com.w.cdngslb.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+mssdk5-normal-lf.zijieapi.com**
+# auto:public:mum.alibabachengdun.com 2026-11-06 01:50
+mum.alibabachengdun.com**
+# auto:public:netapm.music.163.com 2026-11-06 01:50
+netapm.music.163.com**
+# auto:public:data.kuiniuca.com 2026-11-06 01:50
+nsdkxyajs.data.kuiniuca.com**
+# auto:public:open.e.kuaishou.cn 2026-11-06 01:50
+open.e.kuaishou.cn**
+# auto:public:open.kuaishouzt.com 2026-11-06 01:50
+open.kuaishouzt.com**
+# auto:public:opencloud.wostore.cn 2026-11-06 01:50
+opencloud.wostore.cn**
+# auto:public:opt.doubao.com 2026-11-06 01:50
+opt.doubao.com**
+# auto:public:p66-ad.adkwai.com 2026-11-06 01:50
+p66-ad.adkwai.com**
+# auto:public:polaris.zijieapi.com 2026-11-06 01:50
+polaris.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+polaris5-normal-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+polaris5-normal-lf.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+polaris5-normal-lq.zijieapi.com**
+# auto:public:puds.ucweb.com 2026-11-06 01:50
+puds.ucweb.com**
+# auto:public:push-dc.51y5.net 2026-11-06 01:50
+push-dc.51y5.net**
+# auto:public:push.gifshow.com 2026-11-06 01:50
+push.gifshow.com**
+# auto:public:push.m.youku.com 2026-11-06 01:50
+push.m.youku.com**
+# auto:public:px.ucweb.com 2026-11-06 01:50
+px.ucweb.com**
+# auto:public:px.wpk.quark.cn 2026-11-06 01:50
+px.wpk.quark.cn**
+# auto:public:zijieapi.com 2026-11-06 01:50
+relation.zijieapi.com**
+# auto:public:rumt-zh.com 2026-11-06 01:50
+rumt-zh.com**
+# auto:public:tuia.cn 2026-11-06 01:50
+s.tuia.cn**
+# auto:public:s10.histats.com 2026-11-06 01:50
+s10.histats.com**
+# auto:public:s12.cnzz.com 2026-11-06 01:50
+s12.cnzz.com**
+# auto:public:s3.cnzz.com 2026-11-06 01:50
+s3.cnzz.com**
+# auto:public:s4.cnzz.com 2026-11-06 01:50
+s4.cnzz.com**
+# auto:public:s4.histats.com 2026-11-06 01:50
+s4.histats.com**
+
+# ---- autodetect 自动拦截 2026-11-06 01:50（共 40 条）----
+# auto:public:s5.cnzz.com 2026-11-06 01:50
+s5.cnzz.com**
+# auto:public:s6.cnzz.com 2026-11-06 01:50
+s6.cnzz.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+saveu.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+saveu5-normal-hl.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+saveu5-normal-lf.zijieapi.com**
+# auto:public:saveu5-normal-lq.zijieapi.com 2026-11-06 01:50
+saveu5-normal-lq.zijieapi.com**
+# auto:public:uhabo.com 2026-11-06 01:50
+sd-gl.gslb.uhabo.com**
+# auto:public:sdk.1rtb.net 2026-11-06 01:50
+sdk.1rtb.net**
+# auto:public:sdk.zhangyuyidong.cn 2026-11-06 01:50
+sdk.zhangyuyidong.cn**
+# auto:public:data.kuiniuca.com 2026-11-06 01:50
+sdk1xyajs.data.kuiniuca.com**
+# auto:public:sdklog.zhangyuyidong.cn 2026-11-06 01:50
+sdklog.zhangyuyidong.cn**
+# auto:public:sealine.youku.com 2026-11-06 01:50
+sealine.youku.com**
+# auto:public:sensorsdata.cn 2026-11-06 01:50
+sf-static.sensorsdata.cn**
+# auto:public:sensorsdata.cn 2026-11-06 01:50
+sfn-tx-static.sensorsdata.cn**
+# auto:public:1rtb.com 2026-11-06 01:50
+ssp-svr.1rtb.com**
+# auto:public:stat2.openinstall.io 2026-11-06 01:50
+stat2.openinstall.io**
+# auto:public:static.cloudflareinsights.com 2026-11-06 01:50
+static.cloudflareinsights.com**
+# auto:public:51y5.net 2026-11-06 01:50
+taichi.51y5.net**
+# auto:public:miaozhen.com 2026-11-06 01:50
+tencent.m.cn.miaozhen.com**
+# auto:public:timon.zijieapi.com 2026-11-06 01:50
+timon.zijieapi.com**
+# auto:public:tk.statisticslinks.com 2026-11-06 01:50
+tk.statisticslinks.com**
+# auto:public:pkoplink.com 2026-11-06 01:50
+tkpt8xe6rz5ko.v1d.pkoplink.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+tnc0-aliec2.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+tnc0-alisc1.zijieapi.com**
+# auto:public:zijieapi.com 2026-11-06 01:50
+tnc3-alisc1.zijieapi.com**
+# auto:public:toblog.ctobsnssdk.com 2026-11-06 01:50
+toblog.ctobsnssdk.com**
+# auto:public:tracelog-debug.yunxish.com 2026-11-06 01:50
+tracelog-debug.yunxish.com**
+# auto:public:track.uc.cn 2026-11-06 01:50
+track.uc.cn**
+# auto:public:tytx.m.cn.miaozhen.com 2026-11-06 01:50
+tytx.m.cn.miaozhen.com**
+# auto:public:ulog.v6.gifshow.com 2026-11-06 01:50
+ulog.v6.gifshow.com**
+# auto:public:upc.zztfly.com 2026-11-06 01:50
+upc.zztfly.com**
+# auto:public:v1.cnzz.com 2026-11-06 01:50
+v1.cnzz.com**
+# auto:public:v2.reachmax.cn 2026-11-06 01:50
+v2.reachmax.cn**
+# auto:bytedance-fingerprint 2026-11-06 01:50
+v95-aw-music.douyinstatic.com**
+# auto:bytedance-fingerprint 2026-11-06 01:50
+v95-aw-wha.douyinvod.com**
+# auto:public:vcs.zijieapi.com 2026-11-06 01:50
+vcs.zijieapi.com**
+# auto:public:jspcdn.cn 2026-11-06 01:50
+vuqenkdvknpvttndnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 01:50
+vuqenkmgunukgqnbqqnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 01:50
+vuqenkmvkneqpqnmqunnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 01:50
+vuqenkmvknimaqncnnbqq.jspcdn.cn**
+
+# ---- autodetect 自动拦截 2026-11-06 02:00（共 40 条）----
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkmvknmqgnkqjnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkmvknvqjnupnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkmvqnjmuvnbmnqndnqnbqb.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkmvqnjmuvnkdnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkmvqnpkgvnkqqgnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkqqvnktqninvnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqenkqqvnktqnjnbnnk.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkddqnqnsvnkqqnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkdgmnbqqqnindqqbnng.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkduqnubtmnuqunnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkijqnedttntttcnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbb.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbg.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbi.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbj.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbu.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnbv.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnd.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnne.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnng.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnj.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnk.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnu.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqknkiuenbjqqnvqnnv.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsnedkncjjnbqvnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsnedknviqknkqjnqnbnqnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsnegknvjqqnvbvnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsneimniqqqnjgqbnnbqb.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsneiqnjiqqninnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsneiunspqgnbvnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-06 02:00
+vuqsntdndmqqnkqqnqncnqnbqq.jspcdn.cn**
+# auto:public:effirst.com 2026-11-06 02:00
+wpk-hb3c-alb.ude.effirst.com**
+# auto:public:effirst.com 2026-11-06 02:00
+wpk-hb3c-lbg-2.ude.effirst.com**
+# auto:public:effirst.com 2026-11-06 02:00
+wpk-hb3c-lbg.ude.effirst.com**
+# auto:public:51y5.net 2026-11-06 02:00
+wxpush.51y5.net**
+# auto:public:sensorsdata.cn 2026-11-06 02:00
+xiaoheikeji.sfn-tx-beijing-01.saas.sensorsdata.cn**
+# auto:public:z.gds.cnzz.com 2026-11-06 02:00
+z.gds.cnzz.com**
+# auto:public:z12.cnzz.com 2026-11-06 02:00
+z12.cnzz.com**
+# auto:splash+public:z3.cnzz.com 2026-11-06 02:00
+z3.cnzz.com**
+
+# ---- autodetect 自动拦截 2026-11-06 02:01（共 2 条）----
+# auto:public:z6.cnzz.com 2026-11-06 02:01
+z6.cnzz.com**
+# auto:public:umeng.com.gds.alibabadns.com 2026-11-06 02:01
+zb-umpzid.umeng.com.gds.alibabadns.com**
+
+# ---- autodetect 自动拦截 2026-11-06 02:04（共 21 条）----
+# auto:splash+adx 2026-11-06 02:04
+adx.halomobi.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+afd.baidu.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+afdconf.baidu.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+android.rqd.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+c3.gdt.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+canvas-cdn.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+ios.rqd.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+ipv4.gdt.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+isrpt-in.gdt.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+isrpt-vn.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+mi.gdt.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+rpt.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+sdk.e.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+sdkquic.e.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+sdkreport.e.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+tangram.e.qq.com**
+# auto:protected-ad-sdk 2026-11-06 02:04
+v.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+v3.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+vr.gdt.qq.com**
+# auto:splash+protected-ad-sdk 2026-11-06 02:04
+xs.gdt.qq.com**
+# auto:splash+bytedance 2026-11-06 02:04
+zx-vodad-all.volcgtm.com**
+
+# ---- autodetect 自动拦截 2026-11-06 03:00（共 1 条）----
+# auto:public:jspcdn.cn 2026-11-06 03:00
+vuqknkiuenbjqqnvqnni.jspcdn.cn**
+
+# ---- autodetect 自动拦截 2026-11-06 03:30（共 1 条）----
+# auto:public:appsflyersdk.com 2026-11-06 03:30
+1qojio.cdn-settings.appsflyersdk.com**
+
+# ---- autodetect 自动拦截 2026-11-06 13:00（共 1 条）----
+# auto:public:open.kwaizt.com 2026-11-06 13:00
+open.kwaizt.com**
+
+# ---- autodetect 自动拦截 2026-11-06 13:30（共 4 条）----
+# auto:public:cdn.ynuf.aliapp.org 2026-11-06 13:30
+cdn.ynuf.aliapp.org**
+# auto:public:fourier.alibaba.com 2026-11-06 13:30
+fourier.alibaba.com**
+# auto:public:px.effirst.com 2026-11-06 13:30
+px.effirst.com**
+# auto:public:mmstat.com 2026-11-06 13:30
+s-gm.mmstat.com**
+
+# ---- autodetect 自动拦截 2026-11-06 14:00（共 2 条）----
+# auto:public:umeng.com.gds.alibabadns.com 2026-11-06 14:00
+alog-default.umeng.com.gds.alibabadns.com**
+# auto:public:sentry.music.163.com 2026-11-06 14:00
+sentry.music.163.com**
+
+# ---- autodetect 自动拦截 2026-11-06 15:00（共 6 条）----
+# auto:public:51y5.net 2026-11-06 15:00
+alps.51y5.net**
+# auto:public:51y5.net 2026-11-06 15:00
+configwuxi.51y5.net**
+# auto:public:51y5.net 2026-11-06 15:00
+img03.51y5.net**
+# auto:public:51y5.net 2026-11-06 15:00
+rddo.51y5.net**
+# auto:public:jspcdn.cn 2026-11-06 15:00
+vvjhvudhbbuhiv.jspcdn.cn**
+# auto:public:51y5.net 2026-11-06 15:00
+wifiapi02.51y5.net**
+
+# ---- autodetect 自动拦截 2026-11-06 15:30（共 1 条）----
+# auto:public:jspcdn.cn 2026-11-06 15:30
+vuqknkduknmbbqnjbdnnbqq.jspcdn.cn**
+
+# ---- autodetect 自动拦截 2026-11-06 18:30（共 3 条）----
+# auto:public:ipm.atm.youku.com 2026-11-06 18:30
+ipm.atm.youku.com**
+# auto:public:lftxali.fancyapi.com 2026-11-06 18:30
+lftxali.fancyapi.com**
+# auto:public:yktd.m.cn.miaozhen.com 2026-11-06 18:30
+yktd.m.cn.miaozhen.com**
+
+# ---- autodetect 自动拦截 2026-11-06 20:00（共 2 条）----
+# auto:public:ad.12306.cn 2026-11-06 20:00
+ad.12306.cn**
+# auto:public:ma-adx.ctrip.com 2026-11-06 20:00
+ma-adx.ctrip.com**
+
+# ---- autodetect 自动拦截 2026-11-06 21:00（共 3 条）----
+# auto:public:getui.net 2026-11-06 21:00
+gtc.getui.net**
+# auto:public:sdk.open.talk.igexin.com 2026-11-06 21:00
+sdk.open.talk.igexin.com**
+# auto:public:getui.net 2026-11-06 21:00
+talk.bz.getui.net**
+
+# ---- autodetect 自动拦截 2026-11-06 22:30（共 7 条）----
+# auto:public:adsmind.ugdtimg.com 2026-11-06 22:30
+adsmind.ugdtimg.com**
+# auto:public:pgdt.ugdtimg.com 2026-11-06 22:30
+pgdt.ugdtimg.com**
+# auto:public:qzs.gdtimg.com 2026-11-06 22:30
+qzs.gdtimg.com**
+# auto:protected-ad-sdk 2026-11-06 22:30
+t.gdt.qq.com**
+# auto:splash+public:tnc3-aliec2.zijieapi.com 2026-11-06 22:30
+tnc3-aliec2.zijieapi.com**
+# auto:protected-ad-sdk 2026-11-06 22:30
+v2mi.gdt.qq.com**
+# auto:bytedance-fingerprint 2026-11-06 22:30
+v95-aw-chd.douyinvod.com**
+
+# ---- autodetect 自动拦截 2026-11-06 23:00（共 4 条）----
+# auto:public:voiceads.cn 2026-11-06 23:00
+gtm-cn-li93t82mv01.voiceads.cn**
+# auto:public:huichuan-mc.sm.cn 2026-11-06 23:00
+huichuan-mc.sm.cn**
+# auto:public:voiceads.cn 2026-11-06 23:00
+imp.voiceads.cn**
+# auto:public:ssp.1rtb.com 2026-11-06 23:00
+ssp.1rtb.com**
+
+# ---- autodetect 自动拦截 2026-11-06 23:30（共 1 条）----
+# auto:public:pkoplink.com 2026-11-06 23:30
+qpoc786jtnskg.v1d.pkoplink.com**
+
+# ---- autodetect 自动拦截 2026-11-07 00:00（共 1 条）----
+# auto:public:minigame5-normal-lq.zijieapi.com 2026-11-07 00:00
+minigame5-normal-lq.zijieapi.com**
+
+# ---- autodetect 自动拦截 2026-11-07 00:30（共 2 条）----
+# auto:public:pkoplink.com 2026-11-07 00:30
+tf11t9llbf11111r9a61q9vvd95zjjlp.v1d.pkoplink.com**
+# auto:public:pkoplink.com 2026-11-07 00:30
+tf11tepbbf11111r9a71t9ptd9f9zfy1.v1d.pkoplink.com**
+
+# ---- autodetect 自动拦截 2026-11-07 01:00（共 1 条）----
+# auto:public:effirst.com 2026-11-07 01:00
+wpk-hb3c-alb-static.effirst.com**
+
+# ---- autodetect 自动拦截 2026-11-07 06:30（共 2 条）----
+# auto:public:grs.dbankcloud.com 2026-11-07 06:30
+grs.dbankcloud.com**
+# auto:public:rms-drcn.platform.dbankcloud.cn 2026-11-07 06:30
+rms-drcn.platform.dbankcloud.cn**
+
+# ---- autodetect 自动拦截 2026-11-07 09:00（共 2 条）----
+# auto:public:wa.gtimg.com 2026-11-07 09:00
+wa.gtimg.com**
+# auto:splash+public:mmstat.com 2026-11-07 09:00
+wgo.mmstat.com**
+
+# ---- autodetect 自动拦截 2026-11-07 13:30（共 6 条）----
+# auto:public:tdum.alibaba.com 2026-11-07 13:30
+25duvb.tdum.alibaba.com**
+# auto:public:tdum.alibaba.com 2026-11-07 13:30
+bouxoj.tdum.alibaba.com**
+# auto:public:tdum.alibaba.com 2026-11-07 13:30
+coaiab.tdum.alibaba.com**
+# auto:public:tdum.alibaba.com 2026-11-07 13:30
+cxxokl.tdum.alibaba.com**
+# auto:public:mmstat.com 2026-11-07 13:30
+d-gm.mmstat.com**
+# auto:public:tdum.alibaba.com 2026-11-07 13:30
+fbmm48.tdum.alibaba.com**
+
+# ---- autodetect 自动拦截 2026-11-07 16:00（共 2 条）----
+# auto:splash+public:qchannel03.cn 2026-11-07 16:00
+i.qchannel03.cn**
+# auto:public:www.qchannel01.cn 2026-11-07 16:00
+www.qchannel01.cn**
+
+# ---- autodetect 自动拦截 2026-11-07 16:30（共 7 条）----
+# auto:public:api.kwaizt.com 2026-11-07 16:30
+api.kwaizt.com**
+# auto:public:miaozhen.com 2026-11-07 16:30
+kuaishou-mipdx.cn.miaozhen.com**
+# auto:public:p2-ad.adukwai.com 2026-11-07 16:30
+p2-ad.adukwai.com**
+# auto:public:adkwai.com 2026-11-07 16:30
+p4-ad.adkwai.com**
+# auto:public:p4-ad.adukwai.com 2026-11-07 16:30
+p4-ad.adukwai.com**
+# auto:public:p5-ad.adukwai.com 2026-11-07 16:30
+p5-ad.adukwai.com**
+# auto:public:ulogjs.ksapisrv.com 2026-11-07 16:30
+ulogjs.ksapisrv.com**
+
+# ---- autodetect 自动拦截 2026-11-08 02:00（共 4 条）----
+# auto:bytedance-fingerprint 2026-11-08 02:00
+lf26-mgsdk-sign.dailygn.com**
+# auto:bytedance-fingerprint 2026-11-08 02:00
+lf3-mgsdk-sign.dailygn.com**
+# auto:bytedance-fingerprint 2026-11-08 02:00
+lf6-mgsdk-sign.dailygn.com**
+# auto:bytedance-fingerprint 2026-11-08 02:00
+lf9-mgsdk-sign.dailygn.com**
+
+# ---- autodetect 自动拦截 2026-11-08 03:30（共 2 条）----
+# auto:public:dw-online.ksosoft.com 2026-11-08 03:30
+dw-online.ksosoft.com**
+# auto:public:s.c-ctrip.com 2026-11-08 03:30
+s.c-ctrip.com**
+
+# ---- autodetect 自动拦截 2026-11-08 15:30（共 2 条）----
+# auto:public:jspcdn.cn 2026-11-08 15:30
+bbdhbudhvbqhbvi.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-08 15:30
+jehbkjhdbhbuv.jspcdn.cn**
+
+# ---- autodetect 自动拦截 2026-11-08 16:30（共 1 条）----
+# auto:public:tdum.alibaba.com 2026-11-08 16:30
+e1eupf.tdum.alibaba.com**
+
+# ---- autodetect 自动拦截 2026-11-08 22:30（共 1 条）----
+# auto:public:iadmat.nosdn.127.net 2026-11-08 22:30
+iadmat.nosdn.127.net**
+
+# ---- autodetect 自动拦截 2026-11-08 23:00（共 4 条）----
+# auto:public:miaozhen.com 2026-11-08 23:00
+tyks.m.cn.miaozhen.com**
+# auto:public:jspcdn.cn 2026-11-08 23:00
+vuqenkmjunuuqqnabjnnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-08 23:00
+vuqsnedknjqgnbqunnbqq.jspcdn.cn**
+# auto:public:jspcdn.cn 2026-11-08 23:00
+vuqsntdnsqqqnttqjnnbqq.jspcdn.cn**
+
+# ---- 2026-11-08 22:55 漏拦修复（用户实测广告复现后定位）----
+# 根因：jspcdn.cn 是广告/追踪 DGA 域，子域每次随机生成，
+#       公开名单只能穷举旧串（此前 46 条精确规则），新串一律放行。
+#       22:54:56 同一秒：旧串 vuqenkmvknmqgnkqjnnbqq 被拦，
+#       新串 vuqsntdnsqqqnttqjnnbqq 放行 → 广告素材落地。
+#       该父域下 100% 是随机广告串，无业务子域，整域收敛。
+jspcdn.cn**
+**.jspcdn.cn**
+
+# 其他 App 开屏 / 追踪广告（候选页高置信项，多设备多天命中）
+ad.xhey.top**
+track-gateway.y5kfpt.com**
+track-config.y5kfpt.com**
+mobads-logs.baidu.com**
+dy-download-a.yangyi02.com**
+
+# 视频广告域：现有规则只覆盖 -aw-reading-video / -aw-cold / -aw-x，
+# 补齐 -aw-reading-ad 与 -reading-ad 的非 aw 变体（正片是 -reading-video）
+*-aw-reading-ad.qznovelvod.com**
+*-aw-reading-ad.douyinvod.com**
+*-aw-music.douyinstatic.com**
+
+# ---- DGA 随机子域自动收敛 2026-11-08 23:04 ----
+# auto:dga:pkoplink.com 随机子域6个/公开名单7次 2026-11-08 23:04
+pkoplink.com**
+**.pkoplink.com**
+
+# ---- 2026-11-08 23:20 电商广告（卖东西 / 8 秒倒计时）----
+# 证据：22:54:55 广告起，22:55:03（整 8 秒）ec3-core-lq.ecombdapi.com +
+# ecom3-normal-lq.ecombdapi.com 被放行；同秒 ads5-normal-lq.zijieapi.com 已拦。
+# 广告视频域 v95-aw-reading-video.qznovelvod.com 也已被拦，但容器仍从
+# 字节电商 API 拉到商品卡数据 + ecombdimg 商品图，渲染出「卖东西 + 倒计时」。
+# 这两个域是电商广告专用链（红果会话内周期性出现），整域收敛。
+# 如需恢复抖音小黄车购物，删掉下面 4 行即可。
+ecombdapi.com**
+**.ecombdapi.com**
+ecombdimg.com**
+**.ecombdimg.com**
+
+# ---- autodetect 自动拦截 2026-11-08 23:30（共 3 条）----
+# auto:leads-ad 2026-11-08 23:30
+lf-leads-fe-scm.bytecdn.com**
+# auto:leads-ad 2026-11-08 23:30
+lf-leads-fe-scm.bytecdn.com.230b2a2545cfa773.queniubg.com**
+# auto:leads-ad 2026-11-08 23:30
+lf-leads-fe-scm.bytecdn.com.bytedns3.com**
+
+# ---- 新马甲 DGA 自动收敛（行为型，公开名单未收录） 2026-11-08 23:30 ----
+# auto:behavioral-dga:zzcdnx.com 随机子域31个 2026-11-08 23:30
+zzcdnx.com**
+**.zzcdnx.com**
+# auto:behavioral-dga:ctydoh.cn 随机子域12个 2026-11-08 23:30
+ctydoh.cn**
+**.ctydoh.cn**
+
+# ---- 2026-11-08 23:35 抖音信息流广告补漏（引擎已覆盖的不再重复）----
+# cron 23:30 已自动完成：
+#   A 级拦截 lf-leads-fe-scm.bytecdn.com 及 2 个 CNAME 变体
+#   行为型 DGA 整域收敛 zzcdnx.com(31个随机子域) / ctydoh.cn(12个)
+# 这里补引擎规则覆盖不到的：
+# 1) leads 通配：换 scm/fe 之外的标签也能挡住
+*-leads-*.bytecdn.com**
+# 2) 三个低置信追踪/落地页父域：标签为数字、hex 或词典词，
+#    行为型 DGA 判定会主动排除它们，需人工确认后整域收敛。
+#    若刷抖音出现加载变慢，删掉对应两行即可回滚。
+yingt.fun**
+**.yingt.fun**
+wmzfylgdsz.com**
+**.wmzfylgdsz.com**
+ydycdn.com**
+**.ydycdn.com**
+#
+# 未拦：qrstuvwxyzab.com —— 子域是 240e09... 这类 IPv6 地址编码，
+# 属于 CDN 就近调度探测，拦了会影响视频选路，不是广告。

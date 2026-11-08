@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 规则与部署问题先查文档
+    url: https://github.com/hongguo-doh/hongguo-doh/blob/main/docs/FAQ.md
+    about: 常见问题、误伤回滚、DNS 层能力边界都写在 FAQ 里

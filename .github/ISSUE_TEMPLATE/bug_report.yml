@@ -1,0 +1,26 @@
+name: 功能异常 / Bug
+description: 服务、页面或安装流程出问题
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 现象
+      description: 具体表现，最好附截图
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: "Ubuntu 22.04 / Python 3.10 / nginx 1.18 / iOS 17"
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: "journalctl -u hongguo-doh 或 nginx 日志（请删掉你的公网 IP、令牌等）"
+      render: shell
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试
