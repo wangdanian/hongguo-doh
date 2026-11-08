@@ -1,0 +1,4 @@
+# 服务端脚本必须在 Linux 上保持 LF；Windows 检出时不要转 CRLF。
+* text=auto eol=lf
+*.png binary
+*.jpg binary
