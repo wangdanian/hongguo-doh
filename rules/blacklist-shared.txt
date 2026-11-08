@@ -789,3 +789,56 @@ ydycdn.com**
 #
 # 未拦：qrstuvwxyzab.com —— 子域是 240e09... 这类 IPv6 地址编码，
 # 属于 CDN 就近调度探测，拦了会影响视频选路，不是广告。
+
+# ---- autodetect 自动拦截 2026-11-09 01:00（共 2 条）----
+# auto:public:adview.cn 2026-11-09 01:00
+ng-shouyun.adview.cn**
+# auto:public:adview.cn 2026-11-09 01:00
+report-sy.adview.cn**
+
+# ---- 2026-11-09 01:09 补漏：广告落地页/竞价接口（低风险，可整段删除回滚）----
+www.chengzijianzhan.com**
+**.chengzijianzhan.com**
+rta2.wesure100.com**
+
+# ---- 2026-11-09 01:48 补漏：候选队列中确凿的其他 App 开屏广告域（精确域，可整段删除回滚）----
+anti-sdk-report.m.jd.com.gslb.qianxun.com**
+union-click.jd.com.gslb.qianxun.com**
+ad2jsv6-wx-scd.e.kuaishou.com**
+
+
+# ---- 2026-11-09 02:05 补漏：广告 SDK 去 sign 马甲 + 候选队列确凿广告域（可整段删除回滚）----
+dailygn.com**
+**.dailygn.com**
+*-ad-aweme.byteimg.com**
+p3-ad-aweme.byteimg.com.queniuuf.com**
+multi-az-ad.kuaishou.com**
+tao.ad.cn.nt.ad.tengine.ingress.alibabacorp.com.gds.alibabadns.com**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-09 02:07 ----
+# auto:parent-collapse:1rtb.com 子域3个全部已被拦
+1rtb.com**
+**.1rtb.com**
+# auto:parent-collapse:adkwai.com 子域2个全部已被拦
+adkwai.com**
+**.adkwai.com**
+# auto:parent-collapse:adview.cn 子域2个全部已被拦
+adview.cn**
+**.adview.cn**
+# auto:parent-collapse:miaozhen.com 子域4个全部已被拦
+miaozhen.com**
+**.miaozhen.com**
+# auto:parent-collapse:mmstat.com 子域3个全部已被拦
+mmstat.com**
+**.mmstat.com**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-09 02:07 ----
+# auto:parent-collapse:statisticslinks.com 子域4个全部已被拦
+statisticslinks.com**
+**.statisticslinks.com**
+# auto:parent-collapse:ugdtimg.com 子域2个全部已被拦
+ugdtimg.com**
+**.ugdtimg.com**
+# auto:parent-collapse:voiceads.cn 子域2个全部已被拦
+voiceads.cn**
+**.voiceads.cn**

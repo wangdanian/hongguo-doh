@@ -91,6 +91,18 @@ ECOM_AD_RE = re.compile(
 # bytecdn.com 是字节主 CDN，只按 leads 标签精确匹配，不碰其它子域。
 LEADS_AD_RE = re.compile(r"(?:^|\.)[^.]*leads[^.]*\.bytecdn\.com(?:\.|$)")
 
+# 高置信广告子域：只出现在广告 SDK / 广告素材链上。即使公开名单还没收录，
+# 也不用等人打开 /candidates 点确认，直接由 B 级候选晋升为自动拦截。
+# 误伤可在 /cand/allow 写白名单放行；规则行带 #auto 便于整段回滚。
+MAX_AUTO_APPROVE = 10
+AUTO_APPROVE_RE = re.compile(
+    r"(?:^|\.)(?:"
+    r"[^.]*-ad-[^.]*\.byteimg\.com"      # 抖音广告素材专用子域
+    r"|[^.]*-mgsdk[^.]*\.dailygn\.com"   # 巨量广告 SDK 变体（含去掉 -sign 的马甲）
+    r"|ad\.cn\.nt\.ad\."                 # 阿里广告投放链
+    r"|[^.]*-ad-[^.]*\.adview\.cn"       # adview 广告 SDK
+    r")", re.I)
+
 # 广告关键词（按 label 边界匹配，避免 log 误伤 login/catalog）
 STRONG_TOKENS = {"ad", "ads", "adv", "adx", "adsci", "adsdk", "adscience",
                  "banner", "promo", "monetize", "applog", "slardar",
@@ -581,6 +593,28 @@ def main():
             c["score"] += 2
             c["reason"] += " · 父域%d个子域在轮换" % len(by_parent[parent])
 
+    # 3b. 高置信候选自动晋升：明确是广告专用子域、非保护父域、有重复查询，
+    #     直接晋级自动拦截，不用等人打开 /candidates 点确认。
+    auto_approved = []
+    for dom in list(candidates.keys()):
+        if len(auto_approved) >= MAX_AUTO_APPROVE:
+            break
+        c = candidates[dom]
+        p2 = ".".join(dom.split(".")[-2:])
+        p3 = ".".join(dom.split(".")[-3:])
+        if p2 in PROTECT_PARENTS or p3 in PROTECT_PARENTS:
+            continue
+        if not AUTO_APPROVE_RE.search(dom):
+            continue
+        if c.get("q", 0) < 2 and c.get("clients", 0) < 2:
+            continue
+        auto_approved.append(dom)
+        auto_block.append((dom, "auto-reviewed:%s" % dom))
+        candidates.pop(dom, None)
+    if auto_approved:
+        log("B 级高置信自动晋升 %d 条：%s"
+            % (len(auto_approved), ", ".join(auto_approved[:6])))
+
     # 4. 写自动拦截（带上限）。注意：规则行必须干净——load_shared 不解析
     #    行内注释，注释必须独立成行，否则整条规则编译成垃圾永不匹配。
     added = 0
@@ -609,6 +643,43 @@ def main():
     collapse_dga_parents(stats)
     # 4c. 行为型：抓公开名单还没收录的新马甲轮换域
     collapse_new_dga_parents(stats)
+
+    # 4d. 已知广告父域自动收敛：某父域下所有现有子域都已被拦（说明整域是
+    #     广告/追踪专用），就把父域整域拦掉，防「去掉 -sign」「换前缀」的新马甲。
+    #     只收敛 100% 被拦且子域数 <=12 的父域，当前零新增误伤。
+    known_p = defaultdict(lambda: {"all": set(), "blk": set()})
+    for dom in stats:
+        p = ".".join(dom.split(".")[-2:])
+        known_p[p]["all"].add(dom)
+        if ds.match_rule(dom, bl, wl, force) is not None:
+            known_p[p]["blk"].add(dom)
+    NO_COLLAPSE = {"alibaba.com", "volces.com", "queniuck.com", "queniusz.com",
+                   "getui.net", "gepush.com", "sensorsdata.cn", "kwaizt.com",
+                   "effirst.com", "51y5.net", "y5kfpt.com", "queniukw.com"}
+    done_p = set(st.get("collapsed_parents", ()))
+    new_p = []
+    for p, v in sorted(known_p.items()):
+        if len(new_p) >= 5 or p in done_p or p in NO_COLLAPSE:
+            continue
+        if p in PROTECT_PARENTS or ds._match_any(p, wl):
+            continue
+        if len(v["all"]) < 2 or len(v["all"]) > 12:
+            continue
+        if v["blk"] != v["all"]:
+            continue
+        if ds.match_rule(p, bl, wl, force) is not None:
+            continue
+        new_p.append(p)
+    if new_p:
+        with open(SHARED_FILE, "a", encoding="utf-8") as fh:
+            fh.write("\n# ---- autodetect 已知广告父域自动收敛 %s ----\n"
+                     % datetime.now().strftime("%Y-%m-%d %H:%M"))
+            for p in new_p:
+                fh.write("# auto:parent-collapse:%s 子域%d个全部已被拦\n"
+                         % (p, len(known_p[p]["all"])))
+                fh.write("%s**\n**.%s**\n" % (p, p))
+        st["collapsed_parents"] = sorted(done_p | set(new_p))
+        log("已知广告父域自动收敛 %d 个：%s" % (len(new_p), ", ".join(new_p)))
 
     # 5. 候选队列（合并旧的，保留未处理项）
     old = {}

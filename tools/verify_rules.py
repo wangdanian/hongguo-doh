@@ -64,6 +64,12 @@ SHOULD_BLOCK = [
     "1e10adc3949ba59abr3gidltl7x7xowwkuwser3u36u.wmzfylgdsz.com",
     "7a9e2f79.ydycdn.com",
     "47901788647306081891635066702227852167.ydycdn.com",
+    # 广告 SDK 去 sign 马甲与父域自动收敛（2026-11-09）
+    "lf3-mgsdk.dailygn.com", "zzz-newrandom.dailygn.com",
+    "p3-ad-aweme.byteimg.com", "multi-az-ad.kuaishou.com",
+    "tao.ad.cn.nt.ad.tengine.ingress.alibacorp.com.gds.alibabadns.com",
+    "zz-newrandom.1rtb.com", "zz-newrandom.adview.cn",
+    "zz-newrandom.ugdtimg.com", "zz-newrandom.mmstat.com",
 ]
 
 SHOULD_ALLOW = [
@@ -81,6 +87,10 @@ SHOULD_ALLOW = [
     "240e09350a042d000000000000010009.qrstuvwxyzab.com",
     "lf-webcast-sourcecdn-tos.bytegecko.com",
     "pull-flv-l11.douyincdn.com", "p3.douyinpic.com",
+    # 同 CDN 下的业务域，防止 *-ad-aweme / dailygn 整域收敛误伤
+    "p3-novel-sign.byteimg.com", "www.bytedance.com",
+    "frontier-aweme.snssdk.com", "opencdn.jomodns.com",
+    "lf3-reading.fqnovelpic.com",
 ]
 
 

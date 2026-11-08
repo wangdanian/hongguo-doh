@@ -8,3 +8,6 @@
 #
 # 2026-11-08：高德开屏广告（日志中 optimus-ads.amap.com.w.alikunlun.com）
 optimus-ads.amap.com**
+
+# 2026-11-09 阿里广告投放链（父域被白名单覆盖，须走 force）
+tao.ad.cn.nt.ad.tengine.ingress.alibacorp.com.gds.alibabadns.com**

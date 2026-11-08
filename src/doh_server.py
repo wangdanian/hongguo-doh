@@ -271,6 +271,49 @@ def parse_question(packet):
     return ".".join(labels), qtype, qclass, pos + 4
 
 
+DNS_TTL_CAP = 60
+
+
+def clamp_answer_ttl(packet, cap=DNS_TTL_CAP):
+    """把应答 Answer 区每条 RR 的 TTL 压到 cap 秒内，
+    缩短规则变更后客户端沿用旧 DNS 缓存的窗口。"""
+    try:
+        qd = struct.unpack("!H", packet[4:6])[0]
+        an = struct.unpack("!H", packet[6:8])[0]
+    except struct.error:
+        return packet
+    if an == 0:
+        return packet
+    buf = bytearray(packet)
+    pos = 12
+    for _ in range(qd):
+        while pos < len(buf) and buf[pos] != 0:
+            if (buf[pos] & 0xC0) == 0xC0:
+                pos += 2
+                break
+            pos += buf[pos] + 1
+        else:
+            pos += 1
+        pos += 4
+    for _ in range(an):
+        if pos >= len(buf):
+            break
+        if (buf[pos] & 0xC0) == 0xC0:
+            pos += 2
+        else:
+            while pos < len(buf) and buf[pos] != 0:
+                pos += buf[pos] + 1
+            pos += 1
+        if pos + 10 > len(buf):
+            break
+        old = struct.unpack_from("!I", buf, pos + 4)[0]
+        if old > cap:
+            struct.pack_into("!I", buf, pos + 4, cap)
+        rdlen = struct.unpack_from("!H", buf, pos + 8)[0]
+        pos += 10 + rdlen
+    return bytes(buf)
+
+
 def min_ttl(packet):
     """从应答里取最小 TTL，用于给浏览器/CDN 设置缓存时间"""
     try:
@@ -1060,7 +1103,11 @@ class DoHHandler(BaseHTTPRequestHandler):
         if user is not None:
             user_bump(user[0], action == "BLOCK")
 
-        ttl = 30 if action == "BLOCK" else min_ttl(response)
+        if action == "BLOCK":
+            ttl = 30
+        else:
+            response = clamp_answer_ttl(response, DNS_TTL_CAP)
+            ttl = min(min_ttl(response), DNS_TTL_CAP)
         self._send(
             200, response, DOH_CONTENT_TYPE,
             extra={"Cache-Control": "max-age=%d" % ttl, "X-DNS-Action": action},

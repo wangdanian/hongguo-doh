@@ -2,7 +2,19 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
-## 未发布 · 开源首个版本
+## 0.1.1 · 广告 SDK 马甲自动收敛与 DNS 缓存窗口
+
+- 修复广告 SDK 去掉 `-sign` 后缀的子域漏拦（`lf3-mgsdk.dailygn.com` 一类）
+- `autodetect.py` 新增 B 级高置信候选自动晋升（`AUTO_APPROVE_RE`）：
+  明确是广告专用子域的域不再需要人工点 `/candidates`
+- 新增保守父域收敛：某父域下所有现有子域均已被拦时自动写整域规则，
+  防换前缀 / 换后缀的新马甲；`NO_COLLAPSE` 排除 `alibaba.com`、
+  `volces.com` 等业务父域，dry-run 确认零新增误伤
+- `doh_server.py` 新增 `DNS_TTL_CAP = 60` 与 `clamp_answer_ttl()`：
+  放行应答 RR TTL 压到 ≤60 秒，规则变更后客户端旧缓存窗口从最长 1 小时缩到 1 分钟
+- 共享规则同步至 371 条；`verify_rules.py` 扩到 67 个域，线上实测 FAILED=0
+
+## 0.1.0 · 开源首个版本
 
 - 抽出可公开的源码、规则、部署配置与文档，凭据与运行期数据全部外置
 - 新增 `tools/check_before_push.py` 发布前敏感信息自检
