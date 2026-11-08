@@ -3,7 +3,7 @@
 #   GITHUB_OWNER=你的账号 GITHUB_REPO=hongguo-doh ./publish.sh
 set -euo pipefail
 
-OWNER="${GITHUB_OWNER:-hongguo-doh}"       # ← 改成你的 GitHub 账号 / 组织名
+OWNER="${GITHUB_OWNER:-wangdanian}"         # ← 改成你的 GitHub 账号 / 组织名
 REPO="${GITHUB_REPO:-hongguo-doh}"
 BRANCH="${GITHUB_BRANCH:-main}"
 PY="$(command -v python3 || command -v python)"

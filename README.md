@@ -116,7 +116,7 @@ hongguo-doh/
 
 ```bash
 # 1. 准备一台有公网 IP 的 Linux（Ubuntu 22.04 实测），放行 80 / 443
-git clone https://github.com/hongguo-doh/hongguo-doh.git   # 换成你的账号 / 组织
+git clone https://github.com/wangdanian/hongguo-doh.git
 cd hongguo-doh
 cp .env.example .env            # 填入你的服务器 IP / 域名
 # 按 docs/DEPLOY.md 的分步命令部署（证书、nginx、systemd、cron）

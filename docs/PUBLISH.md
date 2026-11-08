@@ -45,7 +45,7 @@ gh repo create hongguo-doh --public --source=. --remote=origin --push
 GITHUB_OWNER=你的账号 ./publish.sh
 ```
 
-脚本里 `OWNER` 默认值是 `hongguo-doh`，`REPO` 默认值是 `hongguo-doh`，
+脚本里 `OWNER` 默认值是 `wangdanian`，`REPO` 默认值是 `hongguo-doh`，
 分支默认 `main`。这三个都能用环境变量覆盖，或直接改脚本顶部三行。
 
 ## 三、创建仓库后要填的设置
@@ -72,9 +72,9 @@ GITHUB_OWNER=你的账号 ./publish.sh
 | `config/hongguo-doh.service` | `Environment=DOH_BASE_URL=...` | 同上 |
 | `config/nginx-*.example` | `/etc/nginx/tls/*.pem` | 你的证书路径 |
 | `examples/install-page.html` | 相对链接 `/issue` | 一般无需改；二维码要用你的地址生成 |
-| `.github/ISSUE_TEMPLATE/config.yml` | `github.com/hongguo-doh/hongguo-doh/...` | 你的仓库地址 |
-| `README.md` clone 命令 | `hongguo-doh/hongguo-doh` | 你的账号 / 组织 |
-| `publish.sh` | `GITHUB_OWNER=hongguo-doh` | 你的账号 |
+| `.github/ISSUE_TEMPLATE/config.yml` | `github.com/wangdanian/hongguo-doh/...` | 你的仓库地址 |
+| `README.md` clone 命令 | `wangdanian/hongguo-doh` | 你的账号 / 组织 |
+| `publish.sh` | `GITHUB_OWNER=wangdanian` | 你的账号 |
 
 **证书不能复用**：IP 地址证书绑定具体 IP，每个部署者要用自己的 IP 重新签
 （Let's Encrypt `shortlived` profile，见 [DEPLOY.md](DEPLOY.md)）。
