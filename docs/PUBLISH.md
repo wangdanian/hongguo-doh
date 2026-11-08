@@ -81,13 +81,19 @@ GITHUB_OWNER=你的账号 ./publish.sh
 
 ## 五、凭据处置
 
-私有工作区里的云助手脚本曾经把 AccessKey 明文写死在代码里。
-现在已改成从环境变量 / `ecs_secrets.local.json` 读取，公开副本不含任何凭据。
-如果那对 AccessKey 曾出现在任何提交或截图里，在阿里云
-「访问控制 → 用户 → AccessKey」里禁用并重建，然后更新本地
-`ecs_secrets.local.json`（这个文件已被 `.gitignore` 排除，永远不进仓库）。
+云助手运维工具（`tools/ecs_run.py` / `push_file.py` / `fetch_file.py`）按以下顺序取凭据：
 
-云助手建议用**最小权限子账号**的 AK，不要用主账号 AccessKey。
+1. 环境变量 `ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` /
+   `ALIYUN_REGION` / `ALIYUN_INSTANCE_ID` —— 完全不落盘，推荐。
+2. **项目之外**的用户级私有文件 `~/.workbuddy/private/ecs_secrets.json`
+   （可用 `ECS_SECRETS_FILE` 改路径），文件权限设为仅当前用户可读。
+
+任何仓库目录内都不存放带值的凭据：脚本不会读取同目录的
+`ecs_secrets.local.json`，`.gitignore` 与 `check_before_push.py` 也会把
+误放进来的文件一律拦下。`tools/ecs_secrets.example.json` 只是空值格式示例。
+
+如果某对 AccessKey 曾经出现在提交、日志或截图里，在阿里云
+「访问控制 → 用户 → AccessKey」里禁用并重建。云助手建议用最小权限子账号的 AK。
 
 ## 六、发布后的协作流程
 

@@ -12,7 +12,7 @@ autodetect-candidates.json
 public-blocklists/
 .cache.json
 
-# 凭据、私钥、本机配置
+# 凭据、私钥、本机配置（真实凭据只走环境变量或仓库外的私有文件）
 ecs_secrets.local.json
 *_secrets*.json
 !tools/ecs_secrets.example.json

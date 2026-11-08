@@ -88,6 +88,7 @@ App 归类是基于域名指纹的推测（DNS 层看不到 PID），不是进�
 4. `examples/install-page.html` 与二维码里的地址。
 5. `rules/` 按你的 App 组合调整，先跑 `verify_rules.py`。
 
-不要提交：`users.json`、任何 `*.log` / `*.tsv`、`ecs_secrets.local.json`、
+不要提交：`users.json`、任何 `*.log` / `*.tsv`、带值的凭据文件、
 含真实地址的 `.mobileconfig`、证书私钥、备份文件。
-`tools/check_before_push.py` 会替你检查。
+凭据只走环境变量或**项目之外**的私有文件（见 `.env.example`），
+不要放进仓库目录。`tools/check_before_push.py` 会替你检查。
