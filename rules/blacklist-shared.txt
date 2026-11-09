@@ -842,3 +842,126 @@ ugdtimg.com**
 # auto:parent-collapse:voiceads.cn 子域2个全部已被拦
 voiceads.cn**
 **.voiceads.cn**
+
+# ---- autodetect 自动拦截 2026-11-09 09:00（共 1 条）----
+# auto:public:ye.dun.163yun.com 2026-11-09 09:00
+ye.dun.163yun.com**
+
+# ---- autodetect 自动拦截 2026-11-09 14:00（共 1 条）----
+# auto:public:dataflow.biliapi.com 2026-11-09 14:00
+dataflow.biliapi.com**
+
+# ---- autodetect 自动拦截 2026-11-09 15:00（共 2 条）----
+# auto:public:log.zijieapi.com 2026-11-09 15:00
+log.zijieapi.com**
+# auto:public:raddus.bayescom.com 2026-11-09 15:00
+raddus.bayescom.com**
+
+# ---- autodetect 自动拦截 2026-11-09 15:30（共 4 条）----
+# auto:public:nexusedgeio.com 2026-11-09 15:30
+aiaa2qwhhl6jpdap.nexusedgeio.com**
+# auto:public:nexusedgeio.com 2026-11-09 15:30
+aiaciyzqppqkk6es.nexusedgeio.com**
+# auto:public:nexusedgeio.com 2026-11-09 15:30
+aiajutnpcipslgfy.nexusedgeio.com**
+# auto:public:nexusedgeio.com 2026-11-09 15:30
+aiaoisaypvsacl2u.nexusedgeio.com**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-09 16:00 ----
+# auto:parent-collapse:nexusedgeio.com 子域4个全部已被拦
+nexusedgeio.com**
+**.nexusedgeio.com**
+
+# ---- autodetect 自动拦截 2026-11-09 22:00（共 22 条）----
+# auto:public:dutils.com 2026-11-09 22:00
+abroad-sdk-push.dutils.com**
+# auto:public:hiaiabc.com 2026-11-09 22:00
+abroad-sdk-push.hiaiabc.com**
+# auto:public:ad.shunchangzhixing.com 2026-11-09 22:00
+ad.shunchangzhixing.com**
+# auto:public:api.shanghailingye.cn 2026-11-09 22:00
+api.shanghailingye.cn**
+# auto:public:api.share.mob.com 2026-11-09 22:00
+api.share.mob.com**
+# auto:public:admobile.top 2026-11-09 22:00
+ax.admobile.top**
+# auto:public:dmrtb.com 2026-11-09 22:00
+dmsdk-api.dmrtb.com**
+# auto:public:dmrtb.com 2026-11-09 22:00
+dmsdk-tracking.dmrtb.com**
+# auto:public:g.fancyapi.com 2026-11-09 22:00
+g.fancyapi.com**
+# auto:public:log-auth.flysleep.cn 2026-11-09 22:00
+log-auth.flysleep.cn**
+# auto:public:dutils.com 2026-11-09 22:00
+m-adnet.dutils.com**
+# auto:public:m-adnet.hiaiabc.com 2026-11-09 22:00
+m-adnet.hiaiabc.com**
+# auto:public:mlog.bigda.com 2026-11-09 22:00
+mlog.bigda.com**
+# auto:public:mpcfg.fancydsp.com 2026-11-09 22:00
+mpcfg.fancydsp.com**
+# auto:public:adx.adwangmai.com 2026-11-09 22:00
+sdk-cfg.adx.adwangmai.com**
+# auto:public:dutils.com 2026-11-09 22:00
+sdk-push.dutils.com**
+# auto:public:hiaiabc.com 2026-11-09 22:00
+sdk-push.hiaiabc.com**
+# auto:public:sdk-track.66mobi.com 2026-11-09 22:00
+sdk-track.66mobi.com**
+# auto:public:sdk.adx.adwangmai.com 2026-11-09 22:00
+sdk.adx.adwangmai.com**
+# auto:public:sdk.beizi.biz 2026-11-09 22:00
+sdk.beizi.biz**
+# auto:public:mob.com 2026-11-09 22:00
+sdk.hk.gslb.mob.com**
+# auto:public:sdktmp.hubcloud.com.cn 2026-11-09 22:00
+sdktmp.hubcloud.com.cn**
+
+# ---- autodetect 自动拦截 2026-11-09 22:30（共 3 条）----
+# auto:public:adsmind.gdtimg.com 2026-11-09 22:30
+adsmind.gdtimg.com**
+# auto:public:getui.net 2026-11-09 22:30
+ido.getui.net**
+# auto:public:tuia.cn 2026-11-09 22:30
+tuia-adx-web.tuia.cn**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-09 22:30 ----
+# auto:parent-collapse:adwangmai.com 子域2个全部已被拦
+adwangmai.com**
+**.adwangmai.com**
+# auto:parent-collapse:dmrtb.com 子域2个全部已被拦
+dmrtb.com**
+**.dmrtb.com**
+# auto:parent-collapse:dutils.com 子域3个全部已被拦
+dutils.com**
+**.dutils.com**
+# auto:parent-collapse:fancyapi.com 子域2个全部已被拦
+fancyapi.com**
+**.fancyapi.com**
+# auto:parent-collapse:hiaiabc.com 子域3个全部已被拦
+hiaiabc.com**
+**.hiaiabc.com**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-09 23:00 ----
+# auto:parent-collapse:gdtimg.com 子域2个全部已被拦
+gdtimg.com**
+**.gdtimg.com**
+# auto:parent-collapse:mob.com 子域2个全部已被拦
+mob.com**
+**.mob.com**
+# auto:parent-collapse:tuia.cn 子域2个全部已被拦
+tuia.cn**
+**.tuia.cn**
+
+# ---- 2026-11-09 23:08 反馈归因补漏：红果/其他 App 随机落地页与 SDK 域（精确父域，可整段删除回滚）----
+qiezibenpao.com**
+**.qiezibenpao.com**
+tianwenca.com**
+**.tianwenca.com**
+
+
+# ---- 陌生随机父域自动收敛 2026-11-09 23:21 ----
+# auto:stranger-parent:opinstallres.com 子域1个 查询47次 设备4台 2026-11-09 23:21
+opinstallres.com**
+**.opinstallres.com**

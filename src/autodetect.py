@@ -54,7 +54,7 @@ PUBLIC_SOURCES = [
 ]
 
 MAX_AUTO = 40          # 每次运行自动拦截上限
-MAX_CAND = 30          # 候选队列上限
+MAX_CAND = 60          # 候选队列上限
 DAYS_WINDOW = 3        # 只看最近 3 天的日志
 PUBLIC_TTL = 86400     # 公开名单每 24h 刷新
 PUB_VER = 2            # 解析器版本：改动解析逻辑时 +1，让旧缓存自动失效
@@ -402,6 +402,120 @@ def _dga_word(label):
     return sum(label.count(c) for c in "aeiou") / len(label) < 0.25
 
 
+def auto_stranger_parents(stats, st):
+    """陌生随机父域自动收敛（补打分器的结构性盲区）。
+
+    autodetect 靠「广告关键词 + 高频 + 多设备」打分，像
+    cf-gl.qiezibenpao.com / sdkgen.data.tianwenca.com 这种纯拼音随机父域
+    一个关键词都没有，永远进不了候选队列：2026-11-09 23:07 实证，
+    两个父域从凌晨到晚上共 64 次查询、5 台设备，全部放行。
+
+    护栏极严：父域标签纯字母 6~24、>=2 个子域、总查询 8~200、
+    >=2 台设备、近 7 天首次出现、子域标签不含业务关键词、
+    父域不在保护/白名单/已知大厂业务域、父域下无子域被白名单放行。
+    命中即写整域两条规则，带 # auto:stranger-parent: 便于整段回滚。
+    """
+    try:
+        existing = set(l.strip() for l in open(SHARED_FILE, encoding="utf-8")
+                       if l.strip() and not l.startswith("#"))
+    except OSError:
+        return []
+    try:
+        wl_raw = set(l.strip().lower().rstrip("*") for l in
+                     open(WHITELIST_FILE, encoding="utf-8")
+                     if l.strip() and not l.startswith("#"))
+    except OSError:
+        wl_raw = set()
+    KNOWN = {
+        "bytegecko.com", "bytedance.com", "byteimg.com", "bytecdn.com",
+        "zijieapi.com", "volces.com", "volcgtm.com", "snssdk.com", "amemv.com",
+        "qznovelvod.com", "fqnovel.com", "fqnovelpic.com", "douyincdn.com",
+        "douyinvod.com", "douyinliving.com", "douyinpic.com", "ixigua.com",
+        "kuaishou.com", "kwaizt.com", "ksyuncdn.com", "netease.com",
+        "qq.com", "tencent.com", "baidu.com", "bdurl.net", "taobao.com",
+        "alicdn.com", "alibabadns.com", "amap.com", "sogou.com", "bilibili.com",
+        "sensorsdata.cn", "getui.net", "gepush.com", "umeng.com", "weibo.com",
+        "apple.com", "icloud.com", "mzstatic.com", "akadns.net", "alikunlun.com",
+        "akamaiedge.net", "alibaba.com", "aigccdn.com", "aishuttler.com",
+        "adukwai.com", "cjjd14.com", "jomodns.com", "cdnhwc2.com",
+        "ecombdapi.com", "ecombdimg.com", "dailygn.com", "jspcdn.cn",
+        "zzcdnx.com", "ctydoh.cn", "queniuck.com", "queniusz.com",
+        "queniukw.com", "queniuuf.com", "queniubg.com", "queniucf.com",
+    }
+    BIZ = re.compile(
+        r"(api|cdn|video|pull|hls|flv|live|push|download|upload|static|image|"
+        r"img|pic|music|login|pay|im|chat|map|sync|config|update|oss|tos|vod|"
+        r"file|www|reading|source|aweme|snssdk|log|report|track)", re.I)
+    groups = defaultdict(lambda: {"doms": set(), "q": 0, "clients": set(),
+                                  "labels": set()})
+    for dom, s in stats.items():
+        parts = dom.split(".")
+        if len(parts) < 3:
+            continue
+        parent = ".".join(parts[-2:])
+        label = parent.split(".")[0]
+        if not re.fullmatch(r"[a-z]{6,24}", label):
+            continue
+        # 父域标签带业务/云/CDN 语义的一律跳过（aigccdn/akamaiedge 的教训）
+        if re.search(r"(cdn|edge|cloud|dns|net|static|img|video|live|api|"
+                     r"tech|data|idc|cache|ai)", label, re.I):
+            continue
+        if (parent in PROTECT_PARENTS or parent in KNOWN
+                or parent in wl_raw):
+            continue
+        g = groups[parent]
+        g["doms"].add(dom)
+        g["q"] += s.get("q", 0)
+        g["clients"] |= set(s.get("clients", ()))
+        g["labels"].add(parts[0])
+
+    bl, wl, force = ds.load_shared(), ds.load_whitelist(), ds.load_force()
+    AD_LABEL = re.compile(
+        r"(sdk|cf-|gl-|ad|landing|jump|click|promo|lp-|h5|stat|track|union|"
+        r"dsp|gdt|mgsdk|splash|aw-)", re.I)
+    fs = st.get("first_seen", {})
+    done = set(st.get("stranger_parents", ()))
+    new = []
+    for parent, g in sorted(groups.items()):
+        if len(new) >= 5 or parent in done:
+            continue
+        if g["q"] < 8 or g["q"] > 120 or len(g["doms"]) > 12:
+            continue
+        if len(g["clients"]) < 2:
+            continue
+        # 所有子域标签都必须带广告/SDK 命名特征，否则就是业务 CDN
+        if not all(AD_LABEL.search(lbl) for lbl in g["labels"]):
+            continue
+        if any(BIZ.search(lbl) for lbl in g["labels"]):
+            continue
+        if ds.match_rule(parent, bl, wl, force) is not None:
+            continue
+        if ("%s**" % parent) in existing or ("**.%s**" % parent) in existing:
+            continue
+        if any(ds._match_any(d, wl) for d in g["doms"]):
+            continue
+        seen = [fs[d] for d in g["doms"] if fs.get(d)]
+        # state 里的 first_seen 常是「状态载入时间」而非真实首见（实测所有域
+        # 都是 93.7h），所以这里只拦超过 7 天的老域；真正防误伤靠下面三条：
+        # 父域标签无业务词、所有子域标签都带广告/SDK 特征、显式 KNOWN 大域。
+        if seen and time.time() - min(seen) > 7 * 86400:
+            continue
+        new.append(parent)
+
+    if new:
+        stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        with open(SHARED_FILE, "a", encoding="utf-8") as fh:
+            fh.write("\n# ---- 陌生随机父域自动收敛 %s ----\n" % stamp)
+            for p in new:
+                fh.write("# auto:stranger-parent:%s 子域%d个 查询%d次 设备%d台 %s\n"
+                         % (p, len(groups[p]["doms"]), groups[p]["q"],
+                            len(groups[p]["clients"]), stamp))
+                fh.write("%s**\n**.%s**\n" % (p, p))
+        st["stranger_parents"] = sorted(done | set(new))
+        log("陌生随机父域自动收敛 %d 个：%s" % (len(new), ", ".join(new)))
+    return new
+
+
 def collapse_new_dga_parents(stats):
     """发现公开名单尚未收录的「新马甲 DGA 父域」（行为型收敛）。
 
@@ -643,6 +757,8 @@ def main():
     collapse_dga_parents(stats)
     # 4c. 行为型：抓公开名单还没收录的新马甲轮换域
     collapse_new_dga_parents(stats)
+    # 4c2. 无广告关键词的陌生随机父域（打分器盲区，见函数注释）
+    auto_stranger_parents(stats, st)
 
     # 4d. 已知广告父域自动收敛：某父域下所有现有子域都已被拦（说明整域是
     #     广告/追踪专用），就把父域整域拦掉，防「去掉 -sign」「换前缀」的新马甲。

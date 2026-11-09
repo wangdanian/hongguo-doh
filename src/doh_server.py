@@ -859,6 +859,34 @@ onsubmit="return confirm('确定要清除我的查询/拦截记录吗？\\n只�
 
 
 # ---- 广告自动发现：候选审核页（autodetect.py 产出 autodetect-candidates.json）----
+_FEEDBACK_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>广告反馈自动归因 · 红果去广告</title>
+<style>body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f5f6f8;
+margin:0;padding:24px;line-height:1.6}.card{background:#fff;border-radius:14px;
+padding:20px 22px;max-width:820px;margin:0 auto 16px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+h1{font-size:20px;margin:0 0 4px}.k{color:#6b6b70;font-size:13px}
+code{font-family:ui-monospace,Menlo,monospace;font-size:13px;word-break:break-all}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{text-align:left;padding:10px 6px;border-bottom:1px solid #f0f0f2;vertical-align:top}
+.b{display:inline-block;padding:6px 14px;border-radius:8px;text-decoration:none;
+font-size:13px;font-weight:600;margin:2px;background:#e02e2e;color:#fff}
+.ok{display:inline-block;background:#e8f8ee;color:#137a3f;border-radius:999px;
+padding:2px 10px;font-size:12px;font-weight:600}</style></head><body>
+<div class="card">
+<h1>广告反馈自动归因 <span class="ok">__COUNT__</span></h1>
+<p class="k">回溯 <b>__AT__</b> 前 6 分钟（__WINDOW__）的放行日志，
+与近 3 天历史基线比对，自动找出首次出现的陌生域并写入拦截规则。
+规则带 <code># feedback:</code> 标签，可整段删除回滚。</p>
+__SUMMARY__
+<h2>本次动作</h2>
+__ACTIONS__
+<h2>可疑域（按分数）</h2>
+<table><tr><th>域名 / 依据</th><th>分数</th></tr>__ROWS__</table>
+<p class="k"><a href="/feedback">再跑一次（当前时刻）</a> ·
+<a href="/candidates">候选审核</a> · <a href="/">状态页</a></p>
+</div></body></html>"""
+
 _CAND_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>可疑广告域审核 · 红果去广告</title>
@@ -876,6 +904,7 @@ font-size:13px;font-weight:600;margin:2px}
 padding:2px 10px;font-size:12px;font-weight:600}</style></head><body>
 <div class="card">
 <h1>可疑广告域审核 <span class="ok">%d 条待定</span></h1>
+<p style="background:#fff0e6;border-radius:10px;padding:10px 14px;margin:12px 0"><b>刚刚又看到广告？</b> <a class="b blk" href="/feedback">一键自动归因并拦截</a> <span class="k">（回溯前 6 分钟放行日志，自动找首次出现的陌生域写规则；也可带时刻：/feedback?at=23:07）</span></p>
 <p class="k">autodetect.py 每半小时扫一遍真实 DNS 日志：命中公开拦截名单或字节系广告指纹的
 会<b>自动拦截</b>；拿不准的（广告关键词 + 突增 + 多设备）会放进这张表等你一键裁决。
 <a href="/candidates">刷新</a> · <a href="/">状态页</a></p>
@@ -957,6 +986,8 @@ class DoHHandler(BaseHTTPRequestHandler):
             import json as _j
             self._send(200, _j.dumps(users_snapshot(), ensure_ascii=False),
                        "application/json; charset=utf-8")
+        elif path == "/feedback":
+            self._do_feedback()
         elif path == "/candidates":
             self._do_candidates()
         elif path.startswith("/cand/"):
@@ -977,6 +1008,66 @@ class DoHHandler(BaseHTTPRequestHandler):
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(items, fh, ensure_ascii=False, indent=1)
         os.replace(tmp, CAND_FILE)
+
+    def _do_feedback(self):
+        import html as _h
+        import json as _j
+        import subprocess as _sp
+        import sys as _sys
+        q = parse_qs(urlparse(self.path).query)
+        at = (q.get("at") or [""])[0]
+        cmd = [_sys.executable, os.path.join(BASE_DIR, "ad_feedback.py"), "--json"]
+        if at:
+            cmd += ["--at", at]
+        try:
+            r = _sp.run(cmd, capture_output=True, text=True, timeout=120)
+            out = (r.stdout or "").strip().splitlines()
+            data = _j.loads(out[-1]) if out else {"error": "no output"}
+            if r.returncode != 0:
+                data["error"] = (r.stderr or "")[-400:]
+        except Exception as e:
+            data = {"error": repr(e)}
+
+        if data.get("error"):
+            rows = "<tr><td colspan='2'>归因失败：" + _h.escape(str(data["error"])) + "</td></tr>"
+            acts = "<p class='k'>未写入任何规则。</p>"
+            summary = "<p style='color:#c00'>脚本执行失败，服务器日志见 ad-feedback.log</p>"
+            cnt, at_s, win_s = "失败", at or "当前", "-"
+        else:
+            acts_list = data.get("actions", [])
+            findings = data.get("findings", [])
+            rows = []
+            for f in findings[:40]:
+                tag = " <span class='k'>(保护域，仅报告)</span>" if f.get("protected") else ""
+                rows.append("<tr><td><code>%s</code>%s<br><span class='k'>%s · 首见 %s · "
+                            "窗口 %s 次 / %s 台设备 · 历史 %s 次</span></td><td>%d</td></tr>"
+                            % (_h.escape(f["domain"]), tag, _h.escape(f["reason"]),
+                               f.get("first", "-"), f.get("q", 0), f.get("clients", 0),
+                               f.get("base", 0), f.get("score", 0)))
+            rows = "".join(rows) or "<tr><td colspan='2' class='k'>这个窗口没有可疑放行域</td></tr>"
+            if acts_list:
+                acts = "<table><tr><th>动作</th><th>域名</th></tr>" + "".join(
+                    "<tr><td>%s</td><td><code>%s</code></td></tr>"
+                    % (_h.escape(x["action"]), _h.escape(x["domain"]))
+                    for x in acts_list) + "</table>"
+            else:
+                acts = "<p class='k'>没有达到自动拦截阈值（分数 &gt;= 6 且非保护域），未写规则。"
+                acts += "可疑域已列在下面，可在 <a href='/candidates'>候选页</a> 人工裁决。</p>"
+            summary = ("<p>窗口放行 <b>%d</b> 条 / <b>%d</b> 个域，命中 <b>%d</b> 个可疑域，"
+                       "自动拦截 <b>%d</b> 个。规则 <b>%d → %d</b>。</p>"
+                       % (data.get("allow_in_window", 0), data.get("unique_domains", 0),
+                          len(findings), len(acts_list),
+                          data.get("rules_before", 0), data.get("rules_after", 0)))
+            cnt = "%d 条自动拦截" % len(acts_list)
+            at_s = _h.escape(data.get("at", ""))
+            win_s = " ~ ".join(data.get("window", ["-", "-"]))
+
+        html = (_FEEDBACK_PAGE.replace("__COUNT__", cnt)
+                .replace("__AT__", at_s).replace("__WINDOW__", win_s)
+                .replace("__SUMMARY__", summary)
+                .replace("__ACTIONS__", acts)
+                .replace("__ROWS__", rows))
+        self._send(200, html, "text/html; charset=utf-8")
 
     def _do_candidates(self):
         import html as _h
