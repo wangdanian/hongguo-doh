@@ -1007,3 +1007,11 @@ rta*.wesure100.com**
 # auto:parent-collapse:volceapplog.com 子域2个全部已被拦
 volceapplog.com**
 **.volceapplog.com**
+
+# ---- 2026-11-10 01:03 广告竞价平台主域收敛 ----
+# rta1/rta2/rta3.wesure100.com 已确认是 RTA 实时竞价广告决策接口（00:35 起拦）。
+# 01:00:55 首次出现 www.wesure100.com，同族主域一并收敛，
+# 避免广告配置/落地页从主域或未拦的编号变体取数据。
+# feedback:wesure100.com 2026-11-10 01:03
+wesure100.com**
+**.wesure100.com**

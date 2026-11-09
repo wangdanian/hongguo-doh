@@ -386,6 +386,9 @@ def analyze(at, write=True, auto=False):
                 "material_hint": bool(COMPANION_RE.search(dom)),
                 "shared_cdn": bool(SAFE_RE.search(dom)) or p2 in KNOWN_PARENTS,
                 "blocked": ds.match_rule(dom, bl, wl, force) is not None,
+                # 白名单整域保护（例如 bytegecko.com）会让黑名单永远打不到素材通道，
+                # 单独标出来，报告里说明「看到了但没拦」的原因。
+                "whitelisted": ds._match_any(dom, wl) is not None,
             })
         companions.sort(key=lambda x: (not x["material_hint"], x["shared_cdn"],
                                       x["blocked"], -x["q"], x["domain"]))
@@ -473,6 +476,40 @@ def analyze(at, write=True, auto=False):
                      at.strftime("%Y-%m-%d %H:%M"))
             fh.write("\n".join(force_lines) + "\n")
 
+    # ---- 定性结论 ----
+    # 「广告请求全被拦、放行日志里又没有新陌生域」时，0 动作不等于没干活：
+    # 素材是提前预取或随信息流 API 一起下发的，与正片共用同一批 CDN 域名，
+    # DNS 层没有可单独删除的域。把这个结论写进报告，避免每次都像没查一样。
+    high = [f for f in findings if f["score"] >= 8 and f["strange"]]
+    prot = [c["domain"] for c in companions if c.get("whitelisted")]
+    if actions:
+        verdict = {
+            "code": "rule_added",
+            "title": "已补 %d 条拦截规则" % len(actions),
+            "detail": "可疑域首次出现且带广告特征，已写入规则（# feedback: 标签可整段回滚）。",
+        }
+    elif high:
+        verdict = {
+            "code": "candidates",
+            "title": "发现 %d 个高分可疑域，未达自动拦截护栏" % len(high),
+            "detail": "这些域属于保护父域或业务高频域，系统只留档、不自动拦，避免误伤正片。",
+        }
+    elif len(triggers) >= 8:
+        verdict = {
+            "code": "dns_exhausted",
+            "title": "广告请求已被全部拦下，这次是缓存 / 信息流原生广告",
+            "detail": ("窗口内拦截 %d 条、其中 %d 次广告请求，放行日志没有新出现的陌生广告域；"
+                       "素材在展示前已预取，或随信息流 API 混排下发，与正片共用同一批 CDN 域名，"
+                       "DNS 层无法单独删除。规则保持现状，不乱拦共用 CDN 以免正片白屏。"
+                       % (len(block_rows), len(triggers))),
+        }
+    else:
+        verdict = {
+            "code": "no_signal",
+            "title": "本窗口没有检测到广告域请求",
+            "detail": "通常是已缓存素材、客户端自己渲染的倒计时，或广告请求发生在窗口之外。",
+        }
+
     report = {
         "at": at.strftime("%Y-%m-%d %H:%M"),
         "window": [w0.strftime("%H:%M:%S"), w1.strftime("%H:%M:%S")],
@@ -484,6 +521,8 @@ def analyze(at, write=True, auto=False):
         "ad_triggers": len(triggers),
         "ad_trigger_domains": sorted({d for _, d, _ in triggers})[:12],
         "companions": companions,
+        "verdict": verdict,
+        "whitelist_protected_channels": prot[:8],
         "rules_before": before,
         "rules_after": rule_count(),
         "auto": auto,

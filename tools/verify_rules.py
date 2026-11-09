@@ -76,6 +76,8 @@ SHOULD_BLOCK = [
     "p6-ad.searchpstatp.com",
     # RTA 实时竞价广告决策接口：精确域规则会漏编号变体（2026-11-10 00:35）
     "rta1.wesure100.com", "rta2.wesure100.com", "rta3.wesure100.com",
+    # 2026-11-10 01:03 起同族主域整域收敛（www 于 01:00:55 首次出现）
+    "www.wesure100.com", "zz-newrandom.wesure100.com",
 ]
 
 SHOULD_ALLOW = [
@@ -105,7 +107,7 @@ SHOULD_ALLOW = [
     "netpay.cmbchina.com", "ccgateway.paas.cmbchina.com",
     # 广告触发时伴随出现的通用资源/素材通道：与正片共用 CDN，拦了会白屏。
     # 2026-11-10 00:35 实测 zt-dl* 与广告触发吻合率仅 10%，属 App 常规下载。
-    "www.wesure100.com", "zt-dl-lf1.bytegslb.com",
+    "zt-dl-lf1.bytegslb.com",
     "lf-normal-gr-sourcecdn.bytegecko.com", "v26-reading-video.qznovelvod.com",
 ]
 

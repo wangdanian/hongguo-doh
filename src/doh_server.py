@@ -987,6 +987,7 @@ padding:2px 10px;font-size:12px;font-weight:600}</style></head><body>
 与近 3 天历史基线比对，自动找出首次出现的陌生域并写入拦截规则。
 规则带 <code># feedback:</code> 标签，可整段删除回滚。</p>
 __SUMMARY__
+__VERDICT__
 __TRIGGERS__
 <h2>本次动作</h2>
 __ACTIONS__
@@ -1140,6 +1141,7 @@ class DoHHandler(BaseHTTPRequestHandler):
         except Exception as e:
             data = {"error": repr(e)}
 
+        v_html = ""
         if data.get("error"):
             rows = "<tr><td colspan='2'>归因失败：" + _h.escape(str(data["error"])) + "</td></tr>"
             acts = "<p class='k'>未写入任何规则。</p>"
@@ -1171,6 +1173,19 @@ class DoHHandler(BaseHTTPRequestHandler):
                        % (data.get("allow_in_window", 0), data.get("unique_domains", 0),
                           len(findings), len(acts_list),
                           data.get("rules_before", 0), data.get("rules_after", 0)))
+            verdict = data.get("verdict") or {}
+            if verdict.get("title"):
+                prot = data.get("whitelist_protected_channels") or []
+                extra = ""
+                if prot:
+                    extra = ("<br><span class='k'>白名单保护的素材通道（看到了但不动，"
+                             "避免正片白屏）：%s</span>"
+                             % _h.escape(", ".join(str(x) for x in prot[:5])))
+                v_html = ("<p style='background:#fff4e5;border-radius:10px;"
+                          "padding:12px 14px;margin:12px 0'><b>结论：%s</b><br>"
+                          "<span class='k'>%s</span>%s</p>"
+                          % (_h.escape(str(verdict.get("title", ""))),
+                             _h.escape(str(verdict.get("detail", ""))), extra))
             cnt = "%d 条自动拦截" % len(acts_list)
             at_s = _h.escape(data.get("at", ""))
             win_s = " ~ ".join(data.get("window", ["-", "-"]))
@@ -1208,6 +1223,7 @@ class DoHHandler(BaseHTTPRequestHandler):
         html = (_FEEDBACK_PAGE.replace("__COUNT__", cnt)
                 .replace("__AT__", at_s).replace("__WINDOW__", win_s)
                 .replace("__SUMMARY__", summary)
+                .replace("__VERDICT__", v_html)
                 .replace("__TRIGGERS__", trig_html)
                 .replace("__ACTIONS__", acts)
                 .replace("__ROWS__", rows))

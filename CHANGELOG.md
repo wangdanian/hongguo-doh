@@ -2,6 +2,29 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
+## 0.1.7 · DNS 边界定性结论与竞价平台主域收敛
+
+- 01:03 归因实证：窗口内拦截 109 条、其中 59 次广告请求（按秒去重），
+  放行 4361 条 / 833 个域，没有出现新的陌生广告域。三个在用令牌全部
+  `enabled=true`，每台设备在该窗口都有 BLOCK 记录，排除「某台设备没生效」
+- 用「用户报障的 6 个时刻 ±90 秒」做标注复核全部 833 个放行域：集中度最高
+  仅 0.33，且都是 Apple/业务域；`*-gr-sourcecdn.bytegecko.com` 只有 0.11，
+  与正片域同一水平。广告素材不是靠某个漏网域当场拉取的，而是提前预取或
+  随信息流 API 混排下发，和正片共用同一批 CDN 域名
+- 顺手排除「别名域绕过」：所有 `ecombdimg` 广告图别名（`.queniu*` /
+  `.cdnhwc1` / `.kunluncan`）最后一次放行停在 2026-11-08 23:16:48，
+  11-09 起 0 条；`p3-aio.ecombdimg.com.queniusy.com` 实测返回 `0.0.0.0`
+- 归因报告新增 `verdict` 定性结论（`dns_exhausted` / `rule_added` /
+  `candidates` / `no_signal`），`/feedback` 页面顶部直接显示结论卡片；
+  0 动作不再看起来像「系统没干活」。伴随通道新增 `whitelisted` 标记，
+  列出被 `bytegecko.com` 等整域白名单保护的素材域，说明看到了但不动的原因
+- 规则收敛 `wesure100.com**` / `**.wesure100.com**`：`rta1/2/3` 已确认是 RTA
+  实时竞价接口，`www.wesure100.com` 于 01:00:55 首次出现，同族主域一并覆盖。
+  线上规则 445 条；实测 `www.wesure100.com`、`rta2`、广告图别名全部
+  `0.0.0.0`，正片域 / `jump.m.cmbchina.cn` / `gateway.icloud.com` 正常解析
+- `tools/verify_rules.py` 把 `www.wesure100.com` 从放行断言移到拦截断言，
+  并增加随机子域断言，防止整域规则退化
+
 ## 0.1.6 · 广告触发信号与伴随通道归因
 
 - 修掉自动归因的结构性盲区：此前只读放行日志 `ok.tsv`，广告域一旦被拦，
@@ -21,6 +44,7 @@
 - 规则补 `rta*.wesure100.com**`（RTA 实时竞价广告决策接口的编号变体，
   此前只拦 `rta2` 精确域）；线上 441 条。实测 `rta1/rta2/rta3` 返回
   `0.0.0.0`，`www.wesure100.com`、`aweme.snssdk.com`、正片域正常解析
+  （`www.wesure100.com` 自 0.1.7 起随竞价平台主域收敛一并拦截）
 - `tools/verify_rules.py` 增加 3 个 RTA 变体拦截断言 + 4 个伴随通道放行断言，
   把「不能拦的通用 CDN」写进回归测试，防止以后自动闭环误伤
 
