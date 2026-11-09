@@ -4,8 +4,10 @@
 
 用法:
     python3 tools/verify_rules.py
-    DOH_URL=http://127.0.0.1:5053/dns-query python3 tools/verify_rules.py
+    DOH_URL=https://118.178.183.90/dns-query python3 tools/verify_rules.py
 
+默认打「IP 直连版」对应的公网端点（与红果去广告-IP直连版.mobileconfig 的
+ServerURL 一致），不依赖域名解析，避免 DDNS 抽风导致的假失败。
 需先启动服务（或 nginx 已反代）。FAILED>0 时退出码 1。
 新增规则后请把代表性域名加进下面两个列表。
 """
@@ -15,7 +17,8 @@ import struct
 import sys
 import urllib.request
 
-DOH_URL = os.environ.get("DOH_URL", "http://127.0.0.1:5053/dns-query")
+# 默认打「IP 直连版」对应的公网端点（与红果去广告-IP直连版.mobileconfig 的 ServerURL 一致）
+DOH_URL = os.environ.get("DOH_URL", "https://118.178.183.90/dns-query")
 
 
 def query(name):
