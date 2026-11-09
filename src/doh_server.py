@@ -1344,7 +1344,9 @@ class DoHHandler(BaseHTTPRequestHandler):
                         if invite_qr_svg() else
                         "（当前节点未装二维码组件，点「复制链接」即可分享）"),
         }
-        self._send(200, html, "text/html; charset=utf-8")
+        # 桌面图标（Web Clip）可能复用旧页面缓存；禁缓存保证新按钮立刻可见
+        self._send(200, html, "text/html; charset=utf-8",
+                   extra={"Cache-Control": "no-store"})
 
     def _do_invite(self):
         qr = invite_qr_svg()
