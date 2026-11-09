@@ -22,7 +22,17 @@ sudo chown -R www-data:www-data "$DEPLOY_DIR"
 ```
 
 服务本体只用 Python 标准库。`autodetect.py` 也只用标准库（`urllib`）。
+开关页 / 邀请页的二维码用可选的 `segno`（纯 Python，无其它依赖），装了就显示、
+没装自动降级成纯链接分享，不影响任何功能：
+
+```bash
+sudo python3 -m pip install --break-system-packages segno   # 或 pip install segno
+```
+
 `tools/ecs_run.py` 是可选的阿里云运维助手，需要时才 `pip install alibabacloud_ecs20140526`。
+
+邀请页 `/invite` 由 `config/nginx-locations.conf.example` 里的精确 location 反代；
+`location /` 的静态目录兜底会把它拦成 404，改完 nginx 记得 `nginx -t && systemctl reload nginx`。
 
 ## 2. TLS 证书（IP 地址证书）
 

@@ -35,7 +35,7 @@ import sys
 import threading
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -160,9 +160,20 @@ def _users_periodic_flush():
 
 
 def issue_user():
-    """发一个新 token（内存+磁盘）"""
+    """发一个新 token（内存+磁盘）。
+
+    1 小时内已签发、但从未产生过任何查询的空令牌直接复用，避免反复点
+    「领取描述文件」堆积出无流量的僵尸用户（2026-11-10 实证：64 个令牌
+    里 61 个从未使用）。一旦令牌被设备真正使用（last_seen / total_q 非空）
+    就永远不会再被复用，不会让两个人共用同一个开关。
+    """
     _users_load_if_needed()
     with _users_lock:
+        cutoff = (datetime.now() - timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+        for tok, u in _users.items():
+            if (not u.get("last_seen") and not u.get("total_q")
+                    and u.get("created", "") >= cutoff):
+                return tok, dict(u)
         tok = secrets.token_urlsafe(9)            # 12 个 URL 安全字符
         while tok in _users:
             tok = secrets.token_urlsafe(9)
@@ -826,6 +837,15 @@ padding:16px;font-size:17px;font-weight:700;color:#fff;cursor:pointer;-webkit-ap
 .btn.ghost{background:#f2f2f7;color:#3a3a3c;margin-top:10px;text-decoration:none}
 .pill{display:inline-block;border-radius:999px;padding:2px 12px;font-size:13px;font-weight:600}
 .pill.on{background:#e8f8ee;color:#137a3f}.pill.off{background:#fdecec;color:#b3261e}
+.btn.share{background:#0a84ff;color:#fff;margin-top:10px}
+.share-box{margin-top:12px;padding:14px;background:#f7f8fc;border-radius:12px;
+border:1px solid #e3e5ee}
+.share-link{display:block;font-family:ui-monospace,Menlo,monospace;font-size:12px;
+word-break:break-all;background:#fff;padding:10px;border-radius:8px;
+border:1px solid #e3e5ee;margin:8px 0;color:#0a84ff}
+.share-box .btn{font-size:15px;padding:12px}
+.qr{text-align:center;margin:12px 0}
+.qr svg{width:180px;height:180px;max-width:180px}
 """
 
 _USER_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
@@ -850,10 +870,98 @@ onsubmit="return confirm('确定要清除我的查询/拦截记录吗？\\n只�
 <button class="btn ghost" type="submit">清除我的记录</button>
 </form>
 <a class="btn ghost" href="/u/%(token)s">刷新数据</a>
+<button class="btn share" type="button" onclick="toggleShare()">分享给朋友 · 让他也能去广告</button>
+<div id="shareBox" class="share-box" style="display:none">
+<p class="k">把下面的链接发给朋友，他用 Safari 打开就能领自己的描述文件。
+链接里不含你的专属令牌，对方碰不到你的开关和统计。</p>
+<code class="share-link" id="shareLink">%(share_url)s</code>
+<button class="btn ghost" type="button" onclick="copyLink()">复制链接</button>
+<button class="btn ghost" type="button" id="sysShareBtn" onclick="sysShare()">用系统分享</button>
+<div class="qr">%(qr)s</div>
+<p class="k">%(qr_note)s</p>
+</div>
 <p class="k">%(tip)s</p>
 </div>
 <div class="card">
 <p class="k"><a href="%(base)s/stats">全局状态页</a> · 开关立即生效，无需删除或重装描述文件。</p>
+</div>
+<script>
+var SHARE_URL = %(share_url_json)s;
+function toggleShare(){
+  var b=document.getElementById('shareBox');
+  b.style.display = b.style.display==='none' ? 'block' : 'none';
+}
+function legacyCopy(t){
+  var i=document.createElement('textarea');i.value=t;document.body.appendChild(i);
+  i.select();document.execCommand('copy');document.body.removeChild(i);
+  alert('链接已复制，发给朋友吧');
+}
+function copyLink(){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(SHARE_URL).then(
+      function(){alert('链接已复制，发给朋友吧');},
+      function(){legacyCopy(SHARE_URL);});
+  }else{legacyCopy(SHARE_URL);}
+}
+function sysShare(){
+  if(navigator.share){
+    navigator.share({title:'红果短剧去广告',
+      text:'装个描述文件，红果短剧广告就没了',url:SHARE_URL}).catch(function(){});
+  }else{alert('当前浏览器不支持系统分享，请点「复制链接」');}
+}
+if(!navigator.share){document.getElementById('sysShareBtn').style.display='none';}
+</script>
+</body></html>"""
+
+
+# ---- 邀请安装：分享出去的链接不含任何 token ----
+INVITE_PATH = "/invite"
+INVITE_URL = BASE_URL + INVITE_PATH
+_QR_CACHE = {}
+
+
+def invite_qr_svg():
+    """邀请链接二维码内联 SVG。segno 是可选依赖，没装就返回空串。"""
+    if "svg" in _QR_CACHE:
+        return _QR_CACHE["svg"]
+    try:
+        import segno
+        svg = segno.make(INVITE_URL, error="m").svg_inline(scale=4)
+        _QR_CACHE["svg"] = svg
+    except Exception:
+        _QR_CACHE["svg"] = ""
+    return _QR_CACHE["svg"]
+
+
+_INVITE_PAGE = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>红果短剧去广告 · 邀请安装</title>
+<style>body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+background:#f2f3f7;color:#1c1c1e;margin:0;padding:20px;line-height:1.7}
+.card{background:#fff;border-radius:16px;padding:22px;max-width:520px;margin:0 auto;
+box-shadow:0 1px 4px rgba(0,0,0,.08)}h1{font-size:20px;margin:0 0 6px}
+.k{color:#6b6b70;font-size:13px}ol{padding-left:20px;font-size:14px}
+.install{display:block;text-align:center;background:#0a84ff;color:#fff;
+text-decoration:none;padding:15px;border-radius:14px;font-size:17px;font-weight:700;margin:16px 0}
+.qr{text-align:center;margin:12px 0}.qr svg{width:180px;height:180px;max-width:180px}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all}</style>
+</head><body>
+<div class="card">
+<h1>红果短剧去广告</h1>
+<p class="k">朋友分享给你的自建去广告节点。iPhone 装一个描述文件，红果短剧的开屏和卖货广告就没了；
+不想用了随时关，不用删描述文件。</p>
+<h2>怎么装</h2>
+<ol>
+<li><b>用 Safari 打开这个页面</b>（微信里点右上角「···」→ 在 Safari 中打开）</li>
+<li>点下面的按钮，会领到<b>你自己的专属令牌</b>并下载描述文件 → 允许</li>
+<li>设置 → 通用 → VPN 与设备管理 → 已下载的描述文件 → 安装</li>
+<li>提示「未签名」时再点一次「安装」即可（自建节点没有 Apple 签名，正常）</li>
+<li>桌面出现「红果去广告」图标，点开就是你自己的开关页，可以随时开/关，不影响别人</li>
+</ol>
+<a class="install" href="/issue">领取我的专属描述文件</a>
+<div class="qr">%(qr)s</div>
+<p class="k">%(qr_note)s</p>
+<p class="k">邀请链接：<code>%(url)s</code></p>
 </div>
 </body></html>"""
 
@@ -961,6 +1069,9 @@ class DoHHandler(BaseHTTPRequestHandler):
             self._send(200, body, "application/x-apple-aspen-config", extra={
                 "Content-Disposition": "attachment; filename=hongguo-%s.mobileconfig" % tok,
             })
+            return
+        if path in (INVITE_PATH, INVITE_PATH + "/"):
+            self._do_invite()
             return
         m = self._USER_RE.match(path)
         if m:
@@ -1226,8 +1337,25 @@ class DoHHandler(BaseHTTPRequestHandler):
                     "等于暂时回到无过滤状态，但描述文件保留。") if on else
                    ("当前处于「只解析不拦截」状态，红果广告会回来。"
                     "点上面按钮随时恢复拦截。"),
+            "share_url": INVITE_URL,
+            "share_url_json": json.dumps(INVITE_URL),
+            "qr": invite_qr_svg(),
+            "qr_note": ("扫描二维码可以直接把这个安装页发给朋友。"
+                        if invite_qr_svg() else
+                        "（当前节点未装二维码组件，点「复制链接」即可分享）"),
         }
         self._send(200, html, "text/html; charset=utf-8")
+
+    def _do_invite(self):
+        qr = invite_qr_svg()
+        html = _INVITE_PAGE % {
+            "qr": qr,
+            "url": INVITE_URL,
+            "qr_note": ("扫描二维码可以把这个安装页发给别人。" if qr else
+                        "（当前节点未装二维码组件，直接转发链接即可）"),
+        }
+        self._send(200, html, "text/html; charset=utf-8",
+                   extra={"Cache-Control": "no-store"})
 
     def _do_status(self):
         entries = load_blacklist()
@@ -1273,6 +1401,7 @@ td,th{text-align:left;padding:6px 0;border-bottom:1px solid #f0f0f2}
 <h2>安装（每人专属）</h2>
 <p><a href="/issue" style="display:inline-block;background:#0a84ff;color:#fff;
 text-decoration:none;padding:11px 22px;border-radius:10px;font-weight:600">领取我的专属描述文件</a></p>
+<p><a href="/invite" style="color:#0a84ff;font-size:14px">把这个去广告节点分享给朋友 →</a></p>
 <ol style="padding-left:20px;font-size:14px;color:#3a3a3c">
 <li>点上面的按钮 → 会领到一个<b>专属令牌</b>并下载你的描述文件 → 允许</li>
 <li>打开 设置 → 通用 → VPN 与设备管理 → 已下载的描述文件 → 安装</li>
