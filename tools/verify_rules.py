@@ -69,7 +69,12 @@ SHOULD_BLOCK = [
     "p3-ad-aweme.byteimg.com", "multi-az-ad.kuaishou.com",
     "tao.ad.cn.nt.ad.tengine.ingress.alibacorp.com.gds.alibabadns.com",
     "zz-newrandom.1rtb.com", "zz-newrandom.adview.cn",
-    "zz-newrandom.ugdtimg.com", "zz-newrandom.mmstat.com",
+    "zz-newrandom.ugdtimg.com",
+    # 上游订阅层增量（anti-AD 等社区聚合名单）：这些域本项目 own 规则/签名层
+    # 并未单独枚举，纯靠上游层拦。验证「手搓名单追不上换域名」已由订阅层解决。
+    # （mmstat.com 因双用途已加白名单，不再放 SHOULD_BLOCK，见 SHOULD_ALLOW）
+    "doubleclick.net", "ad.doubleclick.net",
+    "pagead2.googlesyndication.com", "googleadservices.com", "www.googleadservices.com",
     # 低频历史广告域：自动发现的「首次出现/突发」抓不到，--auto 通道补漏
     # （2026-11-09 23:43 实测 lf3-ad.searchpstatp.com 预取广告素材）
     "lf3-ad.searchpstatp.com", "lf1-ad.searchpstatp.com",
@@ -128,6 +133,10 @@ SHOULD_ALLOW = [
     "modeldownload.taobao.com", "itunes.apple.com.download.ks-cdn.com",
     "promotion-2.pddpic.com", "www.cmbchina.com",
     "gateway.icloud.com", "www.apple.com",
+    # 上游订阅层的「负集护栏」保护域：这些域被 anti-AD 等上游列为广告，但本
+    # 项目日志证明它们是真实业务域（阿里/腾讯/苹果统计与推送），已并入允许集。
+    # 验证订阅上游的同时零误伤。
+    "ac.mmstat.com", "adashx.m.taobao.com", "aedns.weixin.qq.com",
 ]
 
 

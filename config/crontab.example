@@ -1,10 +1,20 @@
-# /etc/cron.d/hongguo-autodetect  （注意 /etc/cron.d 格式必须有 user 字段）
+# 本文件是 root 用户 crontab 的示例（非 /etc/cron.d，故无 user 字段）。
+# 实际部署在 ECS 上用 `crontab -l` / `crontab -` 维护。安装：
+#   crontab -l > cron.bak; cat crontab.example >> cron.bak; crontab cron.bak
+# 各任务都用 flock 防重入，写独立日志，规则文件 mtime 触发 doh_server 热加载，无需重启。
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
 
-*/30 * * * * root flock -n /tmp/autodetect.lock /usr/bin/python3 /opt/hongguo-doh/autodetect.py >> /opt/hongguo-doh/autodetect.log 2>&1
+# 广告归因自动发现：每 30 分钟回放日志，把确凿广告域收敛成父域规则
+*/30 * * * * flock -n /tmp/autodetect.lock /usr/bin/python3 /opt/hongguo-doh/autodetect.py >> /opt/hongguo-doh/autodetect.log 2>&1
 # 无人值守广告反馈归因：每 5 分钟扫最近 6 分钟放行日志，确凿广告域自动写精确域规则
-*/5 * * * * root flock -n /tmp/auto-feedback.lock /usr/bin/python3 /opt/hongguo-doh/ad_feedback.py --auto >/dev/null 2>>/opt/hongguo-doh/auto-feedback-err.log
+*/5 * * * * flock -n /tmp/auto-feedback.lock /usr/bin/python3 /opt/hongguo-doh/ad_feedback.py --auto >/dev/null 2>>/opt/hongguo-doh/auto-feedback-err.log
 # 广告命名特征体检 + 自动归纳：每天回放日志，护栏全过才晋升新特征
 # （业务域 0 误伤 / 强广告标记 / 白名单父域跳过 / 仅新增覆盖 / 每次 2 条、每天 10 条）
-10 4 * * * root flock -n /tmp/signature-report.lock /usr/bin/python3 /opt/hongguo-doh/signature_report.py --auto >> /opt/hongguo-doh/signature-report.log 2>&1
+10 4 * * * flock -n /tmp/signature-report.lock /usr/bin/python3 /opt/hongguo-doh/signature_report.py --auto >> /opt/hongguo-doh/signature-report.log 2>&1
+# 订阅社区聚合广告名单（anti-AD 等），每日刷新兜底覆盖「换域名」类广告。
+# 零误伤护栏依赖本地 doh_log.txt：把日志里「出现且从未被拦」的真实业务域从
+# 上游拦截集剔除并显式加白；doh_server 按 mtime 热加载，无需重启。
+15 3 * * * flock -n /tmp/fetch-upstream.lock /usr/bin/python3 /opt/hongguo-doh/fetch_upstream.py >> /opt/hongguo-doh/fetch-upstream.log 2>&1

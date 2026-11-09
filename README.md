@@ -47,6 +47,8 @@ flowchart LR
         N["nginx :443<br/>IP 证书 / TLS"]
         D["doh_server.py :5053<br/>DoH 解析 + 规则匹配"]
         R[("五层规则 + 命名特征<br/>mtime 热加载")]
+        UB[("upstream-block/allow.txt<br/>社区聚合名单 ~9.6万条")]
+        F["fetch_upstream.py<br/>cron 03:15 订阅 anti-AD"]
         U[("users.json<br/>令牌 / 开关 / 计数")]
         L[("watch/apps/&lt;App&gt;/*.tsv<br/>按 App 分流日志")]
         A["autodetect.py<br/>cron */30"]
@@ -55,11 +57,13 @@ flowchart LR
     P -->|"DoH POST/GET /u/&lt;token&gt;/dns-query"| N --> D
     W -->|"/u/&lt;token&gt;"| N
     D --> R
+    D --> UB
     D --> U
     D --> L
     L --> A
     A -->|"A 级：直接写规则"| R
     A -->|"B 级：人工裁决"| C
+    F -->|"每日刷新 / 零误伤护栏"| UB
     D -->|"放行则向上游递归"| UP["上游 DNS"]
 ```
 
@@ -68,8 +72,9 @@ flowchart LR
 | 功能 | 说明 |
 |---|---|
 | DoH 服务 | 纯标准库实现，支持 GET（`?dns=` base64url）与 POST，A / AAAA / CNAME 等常见类型 |
-| 五层规则 | `force-block.txt` > `whitelist.txt` > `ad-signatures.txt` > `blacklist.txt` + `blacklist-shared.txt` |
+| 五层规则 | `force-block.txt` > `whitelist.txt` > `ad-signatures.txt` > `blacklist.txt` + `blacklist-shared.txt` > `upstream-block.txt`（anti-AD 社区聚合订阅） |
 | 命名特征层 | 不枚举具体域名，按广告命名结构判定；换编号 / 换 CDN 别名的**新域名第一次出现就拦**，不必等名单更新 |
+| 上游订阅层 | `fetch_upstream.py` 每日订阅 anti-AD（`anti-ad.net`，~9.6 万条）兜底覆盖「换域名」类广告；从本地日志算「负集」把真实业务域剔除并加白，**零误伤** |
 | 热加载 | 改规则文件立即生效，不重启服务、不重装描述文件 |
 | 多用户 | `/issue` 签发令牌；`/u/<token>/dns-query` 按开关门控；`/u/<token>` 开关 / 清除 / 刷新 |
 | 后台 | `/users` 用户列表、`/stats` 全局状态、`/candidates` 候选广告审核 |
@@ -93,6 +98,7 @@ hongguo-doh/
 │   ├── autodetect.py        广告域名自动发现引擎
 │   ├── ad_feedback.py       反馈归因 / 无人值守补漏
 │   ├── signature_report.py  命名特征体检 + 自动归纳（业务域误伤回放）
+│   ├── fetch_upstream.py    订阅社区聚合名单（anti-AD 等），归一化 + 零误伤护栏
 │   ├── watch.py             日志分流 / App 会话识别
 │   └── gen_profile.py       离线生成描述文件
 ├── rules/
@@ -100,7 +106,9 @@ hongguo-doh/
 │   ├── blacklist.txt        基础广告规则
 │   ├── blacklist-shared.txt 共享广告规则（常开，#auto: 为引擎写入）
 │   ├── whitelist.txt        业务域白名单
-│   └── force-block.txt      强制拦截例外（优先级高于白名单）
+│   ├── force-block.txt      强制拦截例外（优先级高于白名单）
+│   ├── upstream-block.txt   上游订阅拦截集（fetch_upstream.py 生成，勿手改）
+│   └── upstream-allow.txt   上游订阅允许集（负集护栏，fetch_upstream.py 生成）
 ├── config/
 │   ├── nginx-hongguo-doh.conf.example
 │   ├── nginx-locations.conf.example
@@ -180,17 +188,29 @@ sudo systemctl daemon-reload && sudo systemctl enable --now hongguo-doh
 
 ## 上游名单与许可
 
-`autodetect.py` 在**运行时按需下载**三份公开名单（默认 24 小时缓存），
-本仓库**不分发任何上游名单文件或合并快照**：
+本项目采用两层上游数据：
+
+1. **签名/特征判定（仓库内置）**：`rules/ad-signatures.txt` 是本项目自行整理的
+   命名特征，不依赖外部名单。
+2. **订阅社区聚合名单（运行时生成，`upstream-block.txt` / `upstream-allow.txt`）**：
+   由 `src/fetch_upstream.py` 每日订阅并归一化，本仓库**不分发任何上游名单文件或
+   合并快照**。`fetch_upstream.py` 默认源与许可：
 
 | 来源 | 地址 | 许可 |
 |---|---|---|
-| anti-AD | `https://anti-ad.net/domains.txt` | MIT |
+| anti-AD | `https://anti-ad.net/easylist.txt`（AdGuard 格式，含中文区高命中域名） | MIT |
+
+可选项（在 `fetch_upstream.py` 的 `SOURCES` 取消注释即可，国内可达性见脚本注释）：
+
+| 来源 | 地址 | 许可 |
+|---|---|---|
+| hagezi DNS Blocklist (pro) | `https://hagezi-mirror.dnsbunker.org/wildcard/pro.txt` | 见其项目页面 |
 | oisd (small) | `https://small.oisd.nl/domainswild` | 见其项目页面 |
 | AdGuard DNS Filter | `https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt` | GPL-3.0 |
 
-下载的数据只在本机内存/缓存里参与比对，不随本仓库再分发；使用者若打算
-**再分发合并后的名单**，需自行遵守各上游项目的许可与署名要求。
+`fetch_upstream.py` 下载的数据只在本地落盘为 `upstream-*` 文件参与匹配，不随本仓库
+再分发；生成的拦截集会经过「负集护栏」（参考本地 `doh_log.txt` 剔除真实业务域），
+使用者若打算**再分发合并后的名单**，需自行遵守各上游项目的许可与署名要求。
 `rules/` 下随仓库提供的是本项目自行整理、针对具体 App 验证过的少量规则。
 
 ## 参与贡献

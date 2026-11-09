@@ -119,3 +119,10 @@ mzstatic.com
 # 微信自用 DNS（NewDNS），autodetect 2026-11-06 误拦后加入
 dns.weixin.qq.com.cn
 #auto:candidate 放行 2026-11-06 01:51
+
+# 双用途基础设施父域：日志证明确为真实业务域(非广告投放)，避免误伤 2026-11-10
+**.mmstat.com**
+**.cnzz.com**
+**.getui.net**
+**.51y5.net**
+**.alibabadns.com**

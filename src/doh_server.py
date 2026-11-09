@@ -45,6 +45,10 @@ SHARED_FILE = os.path.join(BASE_DIR, "blacklist-shared.txt")
 WHITELIST_FILE = os.path.join(BASE_DIR, "whitelist.txt")
 FORCE_FILE = os.path.join(BASE_DIR, "force-block.txt")
 SIG_FILE = os.path.join(BASE_DIR, "ad-signatures.txt")
+# 上游订阅名单（fetch_upstream.py 生成）。域名后缀哈希集 + 通配 glob，
+# O(域名层级) 查询，与名单大小（数十万）无关。文件缺失时返回空，行为不变。
+UPSTREAM_BLOCK_FILE = os.path.join(BASE_DIR, "upstream-block.txt")
+UPSTREAM_ALLOW_FILE = os.path.join(BASE_DIR, "upstream-allow.txt")
 LOG_FILE = os.path.join(BASE_DIR, "doh_log.txt")
 
 # 观察日志 + 红果会话窗口（watch.py）。导入失败绝不影响 DNS 服务。
@@ -529,6 +533,82 @@ def load_shared():
         return entries
 
 
+# ---------------------------------------------------------------- 上游订阅名单
+_upstream_block_cache = {"mtime": None, "sset": frozenset(), "wild": []}
+_upstream_allow_cache = {"mtime": None, "sset": frozenset(), "wild": []}
+
+
+def _load_upstream(path):
+    try:
+        with open(path, "r", encoding="utf-8-sig") as fh:
+            sset, wild = set(), []
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "*" in line:
+                    rule, pat = _compile_rule(line.lower().strip("."))
+                    if pat is not None:
+                        wild.append((rule, pat))
+                    elif rule:
+                        sset.add(rule)
+                else:
+                    sset.add(line.lower().strip("."))
+            return frozenset(sset), wild
+    except OSError:
+        return frozenset(), []
+
+
+def load_upstream_block():
+    try:
+        mtime = os.path.getmtime(UPSTREAM_BLOCK_FILE)
+    except OSError:
+        return _upstream_block_cache["sset"], _upstream_block_cache["wild"]
+    if mtime != _upstream_block_cache["mtime"]:
+        s, w = _load_upstream(UPSTREAM_BLOCK_FILE)
+        _upstream_block_cache["sset"] = s
+        _upstream_block_cache["wild"] = w
+        _upstream_block_cache["mtime"] = mtime
+        print("[upstream-block] reloaded, %d suffix / %d wildcard"
+              % (len(s), len(w)), flush=True)
+    return _upstream_block_cache["sset"], _upstream_block_cache["wild"]
+
+
+def load_upstream_allow():
+    try:
+        mtime = os.path.getmtime(UPSTREAM_ALLOW_FILE)
+    except OSError:
+        return _upstream_allow_cache["sset"], _upstream_allow_cache["wild"]
+    if mtime != _upstream_allow_cache["mtime"]:
+        s, w = _load_upstream(UPSTREAM_ALLOW_FILE)
+        _upstream_allow_cache["sset"] = s
+        _upstream_allow_cache["wild"] = w
+        _upstream_allow_cache["mtime"] = mtime
+        print("[upstream-allow] reloaded, %d suffix / %d wildcard"
+              % (len(s), len(w)), flush=True)
+    return _upstream_allow_cache["sset"], _upstream_allow_cache["wild"]
+
+
+def _domain_suffixes(name):
+    """生成 name 及其所有父域（至少 2 段），用于后缀哈希匹配。
+    例：a.b.example.com -> a.b.example.com, b.example.com, example.com"""
+    parts = name.split(".")
+    for i in range(len(parts) - 1):
+        yield ".".join(parts[i:])
+
+
+def _upstream_hit(name, ub):
+    sset, wild = ub
+    for suf in _domain_suffixes(name):
+        if suf in sset:
+            return suf
+    if wild:
+        m = _match_any(name, wild)
+        if m:
+            return m
+    return None
+
+
 def _match_any(name, entries):
     """返回命中的规则串，未命中返回 None"""
     for rule, pattern in entries:
@@ -714,6 +794,15 @@ def handle_query(query, client, ua="", user=None):
             # 共享名单常开（全是广告域）：不再依赖红果会话窗口，
             # 避免服务重启/窗口过期出现拦截真空期（2026-11-06 漏广告根因）
             rule = match_rule(name, load_shared(), wl, force)
+        if rule is None:
+            # 上游订阅名单（anti-AD 等社区聚合，fetch_upstream.py 每日刷新）：
+            # 兜底覆盖「手搓名单 + 签名层」还没覆盖到的广告域名。优先级最低，
+            # 且必须先过手动白名单与上游自身例外（@），避免误伤业务域。
+            ub = load_upstream_block()
+            ua = load_upstream_allow()
+            hit = _upstream_hit(name, ub)
+            if hit and not _upstream_hit(name, ua) and not _match_any(name, wl):
+                rule = "upstream:" + hit
 
     if rule is not None:
         response, action, bucket = build_blocked_response(query, qtype, qend), "BLOCK", "blocked"

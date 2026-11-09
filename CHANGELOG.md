@@ -2,6 +2,34 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
+## 0.1.9 · 订阅社区聚合名单（上游层）+ 零误伤护栏
+
+- 调研 GitHub 同类开源方案，结论：**本项目没有闭门造车**。签名层
+  (`rules/ad-signatures.txt`) 与 anti-AD / hagezi 的「通配 / 正则一类一拦」思路
+  完全同构；但「手搓名单追不上广告换域名」的正确解法是**订阅上游聚合名单自动日更**，
+  这正是业界标准做法（anti-AD 每日 GitHub Actions 刷新、hagezi 4~8h、CMU WWW'22
+  论文把「轮转/换域名」列为 filter list 最大盲区，对策 = 通配 + 订阅 + 自动监测）
+- 新增 `src/fetch_upstream.py`：订阅 anti-AD（`anti-ad.net/easylist.txt`，国内 CDN，
+  约 9.6 万条，每日刷新），归一化成本项目 `后缀哈希 + 通配` 格式，原子落盘到
+  `upstream-block.txt` / `upstream-allow.txt`。`doh_server.py` 判定链末级加入上游层
+  `force > whitelist > signatures > blacklist > shared > upstream`，
+  上游集按 mtime 热加载，无需重启；后缀哈希 O(域名层级) 查询，与名单大小（数十万）无关
+- **零误伤护栏（关键）**：anti-AD 是「宁可错杀」调性，裸订阅会拦掉用户真实在用的
+  业务/基础设施域（`api-adservices.apple.com`、`ac.mmstat.com`、
+  `adashx.m.taobao.com`、`aedns.weixin.qq.com` 等）。`fetch_upstream.py` 从本地
+  `doh_log.txt` 计算「出现且从未被拦」的业务域（负集），聚合后从上游拦截集剔除并
+  显式并入允许集；实测 9.6 万条上游净增，同时 **269 个业务域误伤 → 0**
+- 顺带暴露并修复手工规则的双用途误伤：本项目 own `rules/blacklist-shared.txt` 把
+  阿里统计域 `mmstat.com` 整族拦了（`ac.mmstat.com` 是淘宝/支付宝统计，App 崩）。
+  已移除共享名单全部 `mmstat.com` 拦截规则，并把 5 个确属双用途的基础设施父域
+  (`mmstat.com` / `cnzz.com` / `getui.net` / `51y5.net` / `alibabadns.com`) 加白名单
+- 新增 `config/crontab.example` 中 `fetch_upstream.py` 每日 03:15 刷新条目（已装入
+  ECS root crontab），配合 `doh_server` 热加载实现「换域名」类广告的无人值守兜底覆盖
+- `tools/verify_rules.py` 新增上游层回归断言：上游广告域（`doubleclick.net`、
+  `pagead2.googlesyndication.com`、`googleadservices.com` 等）必须 BLOCK；负集保护域
+  (`ac.mmstat.com`、`adashx.m.taobao.com`、`aedns.weixin.qq.com`) 必须 ALLOW。
+  公网真机验证（正确端点 `doh.niange.top:8443`）**FAILED=0/116**
+
 ## 0.1.8 · 从「枚举域名」改为「命名特征判定」
 
 - 结构性诊断：近 7 天 1005122 条查询、988734 条放行 / 7514 个唯一域 /

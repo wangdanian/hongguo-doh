@@ -74,8 +74,6 @@ abtest3-misc-lf.zijieapi.com**
 abtest3-misc-lq.zijieapi.com**
 # auto:public:zijieapi.com 2026-11-06 01:48
 abtest5-misc-lf.zijieapi.com**
-# auto:public:ac.mmstat.com 2026-11-06 01:48
-ac.mmstat.com**
 # auto:public:fancydsp.com 2026-11-06 01:48
 ad-open2.fancydsp.com**
 # auto:public:ads3-normal-hl.zijieapi.com 2026-11-06 01:48
@@ -180,12 +178,8 @@ gecko5-lf.zijieapi.com**
 gecko5-lq.zijieapi.com**
 # auto:public:pkoplink.com 2026-11-06 01:48
 gf1xtd9bef111111njz1meotdfyp8smy.v1d.pkoplink.com**
-# auto:public:gj.mmstat.com 2026-11-06 01:48
-gj.mmstat.com**
 # auto:public:jspcdn.cn 2026-11-06 01:48
 gkhvvvhujhvju.jspcdn.cn**
-# auto:public:mmstat.com 2026-11-06 01:48
-gm.mmstat.com**
 # auto:public:pkoplink.com 2026-11-06 01:48
 hjgl1b5fskqek.v1d.pkoplink.com**
 # auto:public:httpdns.music.163.com 2026-11-06 01:48
@@ -214,8 +208,6 @@ keyhub.zijieapi.com**
 live-player-log.zijieapi.com**
 # auto:public:log-auth.zztfly.com 2026-11-06 01:48
 log-auth.zztfly.com**
-# auto:public:mmstat.com 2026-11-06 01:48
-log.mmstat.com**
 # auto:public:log1.cmpassport.com 2026-11-06 01:48
 log1.cmpassport.com**
 
@@ -534,8 +526,6 @@ cdn.ynuf.aliapp.org**
 fourier.alibaba.com**
 # auto:public:px.effirst.com 2026-11-06 13:30
 px.effirst.com**
-# auto:public:mmstat.com 2026-11-06 13:30
-s-gm.mmstat.com**
 
 # ---- autodetect 自动拦截 2026-11-06 14:00（共 2 条）----
 # auto:public:umeng.com.gds.alibabadns.com 2026-11-06 14:00
@@ -636,8 +626,6 @@ rms-drcn.platform.dbankcloud.cn**
 # ---- autodetect 自动拦截 2026-11-07 09:00（共 2 条）----
 # auto:public:wa.gtimg.com 2026-11-07 09:00
 wa.gtimg.com**
-# auto:splash+public:mmstat.com 2026-11-07 09:00
-wgo.mmstat.com**
 
 # ---- autodetect 自动拦截 2026-11-07 13:30（共 6 条）----
 # auto:public:tdum.alibaba.com 2026-11-07 13:30
@@ -648,8 +636,6 @@ bouxoj.tdum.alibaba.com**
 coaiab.tdum.alibaba.com**
 # auto:public:tdum.alibaba.com 2026-11-07 13:30
 cxxokl.tdum.alibaba.com**
-# auto:public:mmstat.com 2026-11-07 13:30
-d-gm.mmstat.com**
 # auto:public:tdum.alibaba.com 2026-11-07 13:30
 fbmm48.tdum.alibaba.com**
 
@@ -828,9 +814,6 @@ adview.cn**
 # auto:parent-collapse:miaozhen.com 子域4个全部已被拦
 miaozhen.com**
 **.miaozhen.com**
-# auto:parent-collapse:mmstat.com 子域3个全部已被拦
-mmstat.com**
-**.mmstat.com**
 
 # ---- autodetect 已知广告父域自动收敛 2026-11-09 02:07 ----
 # auto:parent-collapse:statisticslinks.com 子域4个全部已被拦
@@ -1019,3 +1002,4 @@ wesure100.com**
 # ---- autodetect 自动拦截 2026-11-10 01:30（共 1 条）----
 # auto:public:new-aaid.umeng.com.gds.alibabadns.com 2026-11-10 01:30
 new-aaid.umeng.com.gds.alibabadns.com**
+
