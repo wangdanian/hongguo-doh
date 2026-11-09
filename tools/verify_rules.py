@@ -97,6 +97,10 @@ SHOULD_ALLOW = [
     "lf3-reading.fqnovelpic.com",
     # searchpstatp.com 是独立广告域，别把白名单里的 pstatp.com 视频 CDN 一起拦了
     "pull-l3-hs.pstatp.com", "aweme.snssdk.com",
+    # 金融业务域：自动归因不得把「纯字母父域 + jump 命名」判成广告落地页
+    # （2026-11-10 00:20 误拦 jump.m.cmbchina.*，已回滚并加护栏）
+    "jump.m.cmbchina.cn", "jump.m.cmbchina.com",
+    "netpay.cmbchina.com", "ccgateway.paas.cmbchina.com",
 ]
 
 

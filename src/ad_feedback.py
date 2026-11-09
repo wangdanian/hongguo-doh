@@ -13,8 +13,12 @@
 --auto（2026-11-09 23:50 起，cron 每 5 分钟）把这个闭环变成无人值守：
 不再依赖用户报时刻，自动扫最近 6 分钟放行的陌生广告域并写精确域规则。
 护栏：流式读日志、窗口内 >=2 次、分数 >=8、陌生父域 + 广告命名特征、
-大厂/白名单父域分流到 force、每次最多 2 条、每天最多 20 条、
-只写精确域且规则行带 # feedback: 标签可整段回滚。
+大厂/白名单父域分流到 force、金融与品牌业务域直接跳过、
+同一品牌下历史子域 >=5 且查询 >=20 视为业务父域（不自动拦）、
+每次最多 2 条、每天最多 20 条、只写精确域且规则行带
+# feedback: 标签可整段回滚。
+2026-11-10 00:20 实证护栏漏洞：招商银行 jump.m.cmbchina.cn/.com
+被「纯字母随机父域 + jump 命名」误判为广告并自动拦截，已整段回滚。
 2026-11-09 23:43 实证漏点 lf3-ad.searchpstatp.com（11-06 出现过 2 次、
 23:41:46 又预取 2 次，低频历史广告域自动发现永远抓不到）。
 
@@ -51,7 +55,10 @@ SAFE_RE = re.compile(
     r"netease|163\.com|qq\.com|weixin|wechat|tencent|baidu|bdurl|sogou|"
     r"kuaishou|apple|icloud|mzstatic|itunes|microsoft|google|gstatic|"
     r"getui|umeng|sensorsdata|gslb|cdn|tos|vod|hls|flv|live|pull|push|"
-    r"download|upload|static|image|img|pic|music|login|pay|api|log|report)",
+    r"download|upload|static|image|img|pic|music|login|pay|api|log|report|"
+    r"cmbchina|icbc|ccb\.com|abchina|boc\.cn|bankcomm|psbc|pingan|"
+    r"unionpay|alipay|tenpay|bank|meituan|dianping|ctrip|12306|"
+    r"gov\.cn|edu\.cn|xiaomi|huawei|oppo|vivo)",
     re.I)
 
 # 大厂业务父域：即使标签全是字母也不碰。
@@ -183,6 +190,26 @@ def analyze(at, write=True, auto=False):
     except OSError:
         wl_raw = set()
 
+    # 业务父域护栏：同一二级域标签下历史上有成体系的子域和查询量，
+    # 说明是银行/电商/政企的业务系统，不是独立广告落地父域。
+    # 2026-11-10 00:20 实证：招商银行 jump.m.cmbchina.* 被当成随机父域误拦，
+    # 同批还有 20+ 个 paas.cmbchina.com 业务子域；自动闭环已回滚并加此护栏。
+    brand_q = Counter()
+    brand_domains = defaultdict(set)
+    for dom, cnt in base.items():
+        parts = dom.split(".")
+        if len(parts) >= 2:
+            b = parts[-2].lower()
+            brand_q[b] += cnt
+            brand_domains[b].add(dom)
+
+    def busy_brand(dom):
+        parts = dom.split(".")
+        if len(parts) < 2:
+            return False
+        b = parts[-2].lower()
+        return len(brand_domains[b]) >= 5 and brand_q[b] >= 20
+
     findings = []
     for dom, s in win.items():
         if SAFE_RE.search(dom):
@@ -259,7 +286,8 @@ def analyze(at, write=True, auto=False):
             continue
         if ((not f["protected"] or f["whitelisted"]) and f["score"] >= 8
                 and f["strange"] and AD_HINT.search(f["domain"])
-                and not SAFE_RE.search(f["domain"])):
+                and not SAFE_RE.search(f["domain"])
+                and not busy_brand(f["domain"])):
             by_parent[f["parent"]].append(f)
     actions = []
     lines = []
@@ -305,6 +333,8 @@ def analyze(at, write=True, auto=False):
         rule = "%s**" % f["domain"]
         if (f["protected"] and f["score"] >= 10 and f["strange"]
                 and AD_HINT.search(f["domain"])
+                and not SAFE_RE.search(f["domain"])
+                and not busy_brand(f["domain"])
                 and f["domain"] not in done
                 and rule not in force_existing and rule not in existing):
             if auto and len(actions) >= 2:

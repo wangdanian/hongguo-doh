@@ -975,3 +975,24 @@ log-sdk.ksapisrv.com**
 lf3-ad.searchpstatp.com**
 # 覆盖 lf1/lf3/p6 等编号变体；searchpstatp.com 是独立域，不影响白名单里的 pstatp.com
 *-ad.searchpstatp.com**
+
+# ---- 陌生随机父域自动收敛 2026-11-10 00:05 ----
+# auto:stranger-parent:deepinstall.com 子域1个 查询60次 设备5台 2026-11-10 00:05
+deepinstall.com**
+**.deepinstall.com**
+
+
+# ---- autodetect 自动拦截 2026-11-10 00:30（共 4 条）----
+# auto:public:analytics.oceanengine.com 2026-11-10 00:30
+analytics.oceanengine.com**
+# auto:public:easytomessage.com 2026-11-10 00:30
+easytomessage.com**
+# auto:public:klink.volceapplog.com 2026-11-10 00:30
+klink.volceapplog.com**
+# auto:public:volceapplog.com 2026-11-10 00:30
+toblog.volceapplog.com**
+
+# ---- 整域规则补 **. 通配（2026-11-10 00:35，随机子域格式坑）----
+**.3r6fs2855.com**
+**.id6.me**
+**.easytomessage.com**
