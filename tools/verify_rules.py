@@ -78,6 +78,19 @@ SHOULD_BLOCK = [
     "rta1.wesure100.com", "rta2.wesure100.com", "rta3.wesure100.com",
     # 2026-11-10 01:03 起同族主域整域收敛（www 于 01:00:55 首次出现）
     "www.wesure100.com", "zz-newrandom.wesure100.com",
+    # 广告命名特征层（2026-11-10）：以下域名从未在日志里出现过，换编号 /
+    # 换区域码 / 换 CDN 别名也必须第一次查询就拦。锁死「不追具体域名」
+    # 这一行为，防止以后有人把特征层删掉或改窄而悄悄退化回枚举名单。
+    "ads9-normal-zz.zijieapi.com",
+    "ads7-normal-lq.zijieapi.com.brandnewcdn999.com",
+    "v77-reading-ad.qznovelvod.com", "v88-reading-ad.douyinvod.com",
+    "ec9-core-zz.ecombdapi.com", "ecom8-normal-zz.ecombdapi.com",
+    "isaas9-normal-zz.ecombdapi.com", "p8-ad-foobar.byteimg.com",
+    "p7-ad-sign.byteimg.com.futurecdn888.com", "p9-mgsdk-sign.byteimg.com",
+    "rta9.wesure100.com", "lf9-mgsdk-x.dailygn.com",
+    "stat9.deepinstall.com", "foo-adx-web.bar.cn",
+    "sdk9.adx.newexchange.cn", "lf9-ad.zz.searchpstatp.com",
+    "ads12-normal-qa.zijieapi.com.queniuzzz.com",
 ]
 
 SHOULD_ALLOW = [
@@ -109,6 +122,12 @@ SHOULD_ALLOW = [
     # 2026-11-10 00:35 实测 zt-dl* 与广告触发吻合率仅 10%，属 App 常规下载。
     "zt-dl-lf1.bytegslb.com",
     "lf-normal-gr-sourcecdn.bytegecko.com", "v26-reading-video.qznovelvod.com",
+    # 特征层误伤护栏：名字里带 ad / adx，但属于系统服务或受保护业务父域。
+    # 2026-11-10 回放 7216 个业务域 0 命中，这些是最容易写宽时踩到的。
+    "api-adservices.apple.com", "ad-pic.amap.com",
+    "modeldownload.taobao.com", "itunes.apple.com.download.ks-cdn.com",
+    "promotion-2.pddpic.com", "www.cmbchina.com",
+    "gateway.icloud.com", "www.apple.com",
 ]
 
 

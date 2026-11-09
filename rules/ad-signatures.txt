@@ -1,0 +1,51 @@
+# 广告命名特征层 ad-signatures.txt
+#
+# 和黑名单的根本区别：blacklist-shared.txt 一行是一个「见过的域名」，
+# 本文件一行是一类「命名结构」。广告方换编号（ads3 -> ads9）、换区域码
+# （lq -> zz）、换 CDN 别名后缀（.queniurc.com -> .queniuzzz.com）、
+# 换随机子域，只要命名结构不变，第一次出现就会被拦，不需要人工补名单，
+# 也不需要先在日志里见过它。这是对「名单更新速度赶不上换域名速度」的
+# 结构性答复：不再追域名，改为一次写好判定特征。
+#
+# 语法沿用规则引擎：* 匹配一段不含点的字符串，** 匹配任意字符（含点）。
+# 优先级：force-block > whitelist > 本文件 > blacklist > blacklist-shared。
+# 白名单仍最高优先，避免特征写宽时误伤系统 / 金融 / 业务域。
+#
+# 回放依据：2026-11-04 ~ 11-10 线上 1005122 条查询、7229 个从未被拦的
+# 业务域。以下每条特征对业务域 0 命中；命中到的放行域全部是
+# 「规则生效前的历史漏网广告域」，属于补漏收益而非误伤。
+# 体检与自动归纳：python3 signature_report.py [--auto]
+#
+# ---- 阅读信息流广告（正片是 -reading-video，广告固定 -reading-ad）----
+# 覆盖 v11 / v26 / 任意编号变体与任意父域；回放 20 个已拦域、0 业务域命中
+**-reading-ad.**
+#
+# ---- 字节广告 SDK 接口（zijieapi.com 有大量业务域，不能整域拦）----
+# ads<编号>-normal-<区域>.zijieapi.com[.任意 CDN 别名]
+# 回放 6 个已拦域；额外命中 3 个历史漏网别名，均为广告域
+**ads*-normal-*.zijieapi.com**
+#
+# ---- 电商广告 / 商品卡接口（整域已拦，这里保留族特征防回滚）----
+**ec*-core-*.ecombdapi.com**
+**ecom*-normal-*.ecombdapi.com**
+**isaas*-normal-*.ecombdapi.com**
+#
+# ---- 广告素材签名图（byteimg.com 与正片共用，只能按 ad 段精准拦）----
+**-ad-*.byteimg.com**
+**-ad-sign*.byteimg.com**
+# 广告 SDK 签名图：p3 / p6 / p9 等编号变体（2026-11-10 自动归纳确认 3 个变体）
+**p*-mgsdk-sign.byteimg.com**
+#
+# ---- RTA 实时竞价决策接口（编号变体）----
+**rta*.wesure100.com**
+#
+# ---- mgsdk 马甲族与安装归因统计 ----
+**-mgsdk*.dailygn.com**
+**stat*.deepinstall.com**
+#
+# ---- ADX 广告交易平台 ----
+**-adx-web.**
+**sdk*.adx.**
+#
+# ---- 预防性：搜索广告未来变体（当前名单已覆盖 lf1/lf3/p6）----
+**-ad.*.searchpstatp.com**

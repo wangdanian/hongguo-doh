@@ -68,7 +68,21 @@ PROTECT_PARENTS = {
     "qq.com", "qq.com.cn", "tencent.com", "tencent-cloud.net", "aliyuncs.com",
     "amazonaws.com", "baidu.com", "sogou.com", "kuaishou.com",
     "aliyun.com", "cloudflare.com", "microsoft.com", "apple.com",
+    # 金融 / 支付 / 政务 / 身份类：误拦的代价远高于漏一个广告。
+    # 2026-11-10 01:30 教训：cmbchina.cn 仅有一个 jump.m 子域，jump
+    # 恰好落在 AD_LABEL 里，被「陌生随机父域收敛」整域拦掉（银行 App
+    # 跳转失效）。这类父域一律不参与任何自动收敛。
+    "cmbchina.cn", "cmbchina.com", "icbc.com.cn", "ccb.com", "boc.cn",
+    "abchina.com", "psbc.com", "bankcomm.com", "spdb.com.cn",
+    "citicbank.com", "pingan.com", "unionpay.com", "alipay.com",
+    "tenpay.com", "pbc.gov.cn", "12306.cn", "gov.cn", "chinatax.gov.cn",
 }
+
+# 父域标签语义兜底：即使换了家银行 / 换了新马甲，只要名字里带这些词，
+# 自动收敛一律跳过。配合 PROTECT_PARENTS 的显式枚举做双保险。
+SENSITIVE_PARENT_RE = re.compile(
+    r"(bank|cmb|icbc|ccb|boc|abchina|pay|unionpay|alipay|wallet|"
+    r"gov|tax|insur|secur|credit|loan|fund)", re.I)
 
 # 保护父域里「确凿的广告子域」：这些是广点通/百度联盟 SDK 本体，
 # 拦掉等于让 App 拉不到开屏素材（正是要的效果），不误伤登录/支付等主功能。
@@ -439,6 +453,7 @@ def auto_stranger_parents(stats, st):
         "akamaiedge.net", "alibaba.com", "aigccdn.com", "aishuttler.com",
         "adukwai.com", "cjjd14.com", "jomodns.com", "cdnhwc2.com",
         "ecombdapi.com", "ecombdimg.com", "dailygn.com", "jspcdn.cn",
+        "cmbchina.cn", "cmbchina.com",
         "zzcdnx.com", "ctydoh.cn", "queniuck.com", "queniusz.com",
         "queniukw.com", "queniuuf.com", "queniubg.com", "queniucf.com",
     }
@@ -461,7 +476,7 @@ def auto_stranger_parents(stats, st):
                      r"tech|data|idc|cache|ai)", label, re.I):
             continue
         if (parent in PROTECT_PARENTS or parent in KNOWN
-                or parent in wl_raw):
+                or parent in wl_raw or SENSITIVE_PARENT_RE.search(label)):
             continue
         g = groups[parent]
         g["doms"].add(dom)
@@ -470,8 +485,10 @@ def auto_stranger_parents(stats, st):
         g["labels"].add(parts[0])
 
     bl, wl, force = ds.load_shared(), ds.load_whitelist(), ds.load_force()
+    # jump / click / h5 / lp- 是正常业务的跳转与落地页常用词，曾导致
+    # jump.m.cmbchina.cn 被误判成广告 SDK 子域，已从特征里移除。
     AD_LABEL = re.compile(
-        r"(sdk|cf-|gl-|ad|landing|jump|click|promo|lp-|h5|stat|track|union|"
+        r"(sdk|cf-|gl-|ad|landing|promo|stat|track|union|"
         r"dsp|gdt|mgsdk|splash|aw-)", re.I)
     fs = st.get("first_seen", {})
     done = set(st.get("stranger_parents", ()))

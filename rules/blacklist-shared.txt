@@ -1015,3 +1015,7 @@ volceapplog.com**
 # feedback:wesure100.com 2026-11-10 01:03
 wesure100.com**
 **.wesure100.com**
+
+# ---- autodetect 自动拦截 2026-11-10 01:30（共 1 条）----
+# auto:public:new-aaid.umeng.com.gds.alibabadns.com 2026-11-10 01:30
+new-aaid.umeng.com.gds.alibabadns.com**

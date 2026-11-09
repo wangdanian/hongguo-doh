@@ -46,7 +46,7 @@ flowchart LR
     subgraph VPS["你的 VPS"]
         N["nginx :443<br/>IP 证书 / TLS"]
         D["doh_server.py :5053<br/>DoH 解析 + 规则匹配"]
-        R[("四层规则文件<br/>mtime 热加载")]
+        R[("五层规则 + 命名特征<br/>mtime 热加载")]
         U[("users.json<br/>令牌 / 开关 / 计数")]
         L[("watch/apps/&lt;App&gt;/*.tsv<br/>按 App 分流日志")]
         A["autodetect.py<br/>cron */30"]
@@ -68,7 +68,8 @@ flowchart LR
 | 功能 | 说明 |
 |---|---|
 | DoH 服务 | 纯标准库实现，支持 GET（`?dns=` base64url）与 POST，A / AAAA / CNAME 等常见类型 |
-| 四层规则 | `force-block.txt` > `whitelist.txt` > `blacklist.txt` + `blacklist-shared.txt` |
+| 五层规则 | `force-block.txt` > `whitelist.txt` > `ad-signatures.txt` > `blacklist.txt` + `blacklist-shared.txt` |
+| 命名特征层 | 不枚举具体域名，按广告命名结构判定；换编号 / 换 CDN 别名的**新域名第一次出现就拦**，不必等名单更新 |
 | 热加载 | 改规则文件立即生效，不重启服务、不重装描述文件 |
 | 多用户 | `/issue` 签发令牌；`/u/<token>/dns-query` 按开关门控；`/u/<token>` 开关 / 清除 / 刷新 |
 | 后台 | `/users` 用户列表、`/stats` 全局状态、`/candidates` 候选广告审核 |
@@ -90,9 +91,12 @@ hongguo-doh/
 ├── src/
 │   ├── doh_server.py        DoH 服务 + 多用户 + 描述文件生成 + 页面
 │   ├── autodetect.py        广告域名自动发现引擎
+│   ├── ad_feedback.py       反馈归因 / 无人值守补漏
+│   ├── signature_report.py  命名特征体检 + 自动归纳（业务域误伤回放）
 │   ├── watch.py             日志分流 / App 会话识别
 │   └── gen_profile.py       离线生成描述文件
 ├── rules/
+│   ├── ad-signatures.txt    广告命名特征（覆盖未见过的新域名，0 误伤回放）
 │   ├── blacklist.txt        基础广告规则
 │   ├── blacklist-shared.txt 共享广告规则（常开，#auto: 为引擎写入）
 │   ├── whitelist.txt        业务域白名单

@@ -44,6 +44,7 @@ BLACKLIST_FILE = os.path.join(BASE_DIR, "blacklist.txt")
 SHARED_FILE = os.path.join(BASE_DIR, "blacklist-shared.txt")
 WHITELIST_FILE = os.path.join(BASE_DIR, "whitelist.txt")
 FORCE_FILE = os.path.join(BASE_DIR, "force-block.txt")
+SIG_FILE = os.path.join(BASE_DIR, "ad-signatures.txt")
 LOG_FILE = os.path.join(BASE_DIR, "doh_log.txt")
 
 # 观察日志 + 红果会话窗口（watch.py）。导入失败绝不影响 DNS 服务。
@@ -105,6 +106,7 @@ _bl_cache = {"mtime": None, "entries": []}
 _sh_cache = {"mtime": None, "entries": []}
 _wl_cache = {"mtime": None, "entries": []}
 _force_cache = {"mtime": None, "entries": []}
+_sig_cache = {"mtime": None, "entries": []}
 _stats = {"total": 0, "allowed": 0, "blocked": 0, "failed": 0}
 _stats_lock = threading.Lock()
 
@@ -463,6 +465,39 @@ def load_force():
     return entries
 
 
+def load_signatures():
+    """热加载「广告命名特征」层。
+
+    与黑名单的根本区别：黑名单一行是一个见过的域名，特征一行是一类
+    命名结构（编号、区域码、CDN 别名后缀都可任意变）。广告方换新域名
+    第一次出现时就能判掉，不需要先见过、也不需要更新名单。
+
+    优先级：force > whitelist > signatures > blacklist > shared。
+    白名单仍然最高优先（force 例外除外），防止特征写宽时误伤系统域。
+    文件不存在时返回空表，行为与旧版完全一致。
+    """
+    try:
+        mtime = os.path.getmtime(SIG_FILE)
+    except OSError:
+        return []
+    if mtime == _sig_cache["mtime"]:
+        return _sig_cache["entries"]
+    entries = []
+    try:
+        with open(SIG_FILE, "r", encoding="utf-8-sig") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                entries.append(_compile_rule(line.lower().strip(".")))
+    except OSError:
+        return []
+    _sig_cache["mtime"] = mtime
+    _sig_cache["entries"] = entries
+    print("[signatures] reloaded, %d rule(s)" % len(entries), flush=True)
+    return entries
+
+
 def load_shared():
     """跨 App 共用域名（穿山甲/百度联盟等）。
 
@@ -669,6 +704,12 @@ def handle_query(query, client, ua="", user=None):
         wl = load_whitelist()
         force = load_force()
         rule = match_rule(name, load_blacklist(), wl, force)
+        if rule is None and not _match_any(name, wl):
+            # 广告命名特征层：白名单优先，命中即拦。
+            # 新广告域名第一次出现就生效，不必等名单更新（2026-11-10）。
+            sig = _match_any(name, load_signatures())
+            if sig:
+                rule = "sig:" + sig
         if rule is None:
             # 共享名单常开（全是广告域）：不再依赖红果会话窗口，
             # 避免服务重启/窗口过期出现拦截真空期（2026-11-06 漏广告根因）

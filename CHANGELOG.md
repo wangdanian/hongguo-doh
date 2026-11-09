@@ -2,6 +2,38 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
+## 0.1.8 · 从「枚举域名」改为「命名特征判定」
+
+- 结构性诊断：近 7 天 1005122 条查询、988734 条放行 / 7514 个唯一域 /
+  885 个父域，每天新增 476~1192 个域；但新增的绝大多数是 CDN 随机子域和
+  别名外壳，广告标识本身不变。现有 445 条规则里 `jspcdn.cn` 51 条、
+  `zijieapi.com` 45 条全是同族编号变体 —— 按域名一条条补，永远追不上
+- 新增 `rules/ad-signatures.txt`（14 条）与 `load_signatures()`：一行是一条
+  **命名结构**（编号、区域码、CDN 别名后缀可任意变），不是见过的域名。
+  判定链改为 `force > whitelist > signatures > blacklist > shared`，白名单
+  仍最高优先，特征层 mtime 热加载，文件不存在时行为与旧版完全一致。
+  新广告域名第一次出现即拦，不需要先见过、不需要更新名单
+- 回放护栏：2026-11-04~11-10 全部日志、7216 个从未被拦的业务域，
+  14 条特征 **0 误伤**，同时额外覆盖 19 个历史漏网广告域。真发 DoH 验证
+  17 个从未出现过的「未来域名」（`ads9-normal-zz.zijieapi.com`、
+  `v77-reading-ad.qznovelvod.com`、`p8-ad-foobar.byteimg.com`、
+  `ads12-normal-qa.zijieapi.com.queniuzzz.com` 等）全部返回 `0.0.0.0`；
+  `api-adservices.apple.com`、`ad-pic.amap.com`、`modeldownload.taobao.com`、
+  银行域 / 正片域照常解析
+- 新增 `src/signature_report.py`：回放体检 + 自动归纳。从「已拦域 + 带强
+  广告语义的漏网域」把数字段泛化成通配特征，护栏为业务域 0 误伤 /
+  必须含强广告标记 / 白名单父域跳过 / 只保留现有特征尚未覆盖的变体 /
+  每次最多 2 条、每天最多 10 条；带 `# auto:sig:` 注释可整段回滚。
+  cron 每天 04:10 运行
+- 修复 01:30 `autodetect` 误拦银行域：`auto_stranger_parents` 把
+  `jump.m.cmbchina.cn` 的 `jump` 当成广告 SDK 标签，整域收敛了
+  `cmbchina.cn`。已回滚两条规则；`PROTECT_PARENTS` 补金融 / 支付 / 政务 /
+  身份父域，新增 `SENSITIVE_PARENT_RE` 语义兜底，`AD_LABEL` 去掉
+  `jump|click|h5|lp-`，`KNOWN` 补 `cmbchina.*`。回归测试确认银行域不再被
+  收敛，同时真实广告父域通道仍可正常收敛（通道没有被护栏废掉）
+- `verify_rules.py` 加入「未来域名必须拦」与「名字带 ad 的业务域必须放行」
+  两组回归断言；线上 `FAILED=0/109`，规则 446 条 + 特征 14 条
+
 ## 0.1.7 · DNS 边界定性结论与竞价平台主域收敛
 
 - 01:03 归因实证：窗口内拦截 109 条、其中 59 次广告请求（按秒去重），
