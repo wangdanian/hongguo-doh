@@ -116,7 +116,7 @@ Environment=DOH_BASE_URL=https://203.0.113.10
 
 其它可选项见 `.env.example`。
 
-## 5. 自动发现引擎
+## 5. 自动发现引擎 + 无人值守归因
 
 ```bash
 sudo cp config/crontab.example /etc/cron.d/hongguo-autodetect
@@ -127,9 +127,22 @@ sudo chmod 644 /etc/cron.d/hongguo-autodetect
 
 ```cron
 */30 * * * * root flock -n /tmp/autodetect.lock /usr/bin/python3 /opt/hongguo-doh/autodetect.py >> /opt/hongguo-doh/autodetect.log 2>&1
+*/5 * * * * root flock -n /tmp/auto-feedback.lock /usr/bin/python3 /opt/hongguo-doh/ad_feedback.py --auto >/dev/null 2>>/opt/hongguo-doh/auto-feedback-err.log
 ```
 
-首次运行会下载三份公开名单（约 22.5 万域），给足 3 分钟：
+第二条是 `ad_feedback.py --auto`：每 5 分钟扫最近 6 分钟放行的陌生广告域，
+**不需要用户报时刻、也不需要点网页按钮**，确凿的直接写精确域规则。
+它补的正是自动发现的结构性盲区——`lf3-ad.searchpstatp.com` 这类
+「历史只出现过几次、名字带 ad、当天又预取一次」的低频广告域，
+永远进不了「首次出现 / 高频突发」通道（2026-11-09 23:43 实测漏点）。
+
+护栏（改代码时别拆）：窗口内 ≥2 次、分数 ≥8、陌生父域 + 广告命名特征、
+大厂保护父域不碰、白名单命中的域改写 `force-block.txt`、
+每次最多 2 条、每天最多 20 条、只写精确域。
+流式读日志 + 时间戳按字符串比较，单次约 1.4 秒 / 28 MB 内存，
+结果写 `auto-feedback.log`，规则行带 `# feedback:` 标签可整段回滚。
+
+首次运行会自动下载三份公开名单（约 22.5 万域），给足 3 分钟：
 
 ```bash
 cd "$DEPLOY_DIR" && timeout 280 python3 autodetect.py

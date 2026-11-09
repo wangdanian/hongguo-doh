@@ -10,10 +10,19 @@
 一个关键词都没有，永远进不了候选队列（2026-11-09 23:07 实证：64 次查询、
 5 台设备、从凌晨放行到晚上）。用户的一次点击就是最高置信信号。
 
+--auto（2026-11-09 23:50 起，cron 每 5 分钟）把这个闭环变成无人值守：
+不再依赖用户报时刻，自动扫最近 6 分钟放行的陌生广告域并写精确域规则。
+护栏：流式读日志、窗口内 >=2 次、分数 >=8、陌生父域 + 广告命名特征、
+大厂/白名单父域分流到 force、每次最多 2 条、每天最多 20 条、
+只写精确域且规则行带 # feedback: 标签可整段回滚。
+2026-11-09 23:43 实证漏点 lf3-ad.searchpstatp.com（11-06 出现过 2 次、
+23:41:46 又预取 2 次，低频历史广告域自动发现永远抓不到）。
+
 安全护栏：白名单/保护父域/已拦域/业务 CDN 域一律跳过；只写精确域或
 确认整域都是新域的父域；规则行带 #feedback: 标签，可整段 grep 回滚。
 """
 import argparse
+import contextlib
 import glob
 import json
 import os
@@ -31,6 +40,7 @@ SHARED = os.path.join(BASE, "blacklist-shared.txt")
 FORCE = os.path.join(BASE, "force-block.txt")
 REPORT = os.path.join(BASE, "ad-feedback.json")
 LOG = os.path.join(BASE, "ad-feedback.log")
+AUTO_LOG = os.path.join(BASE, "auto-feedback.log")
 
 # 业务 / 视频 / 系统域：这些不可能是「新广告落地页」，先排掉，
 # 避免把正片 CDN、苹果推送、DNS 调度误判成广告。
@@ -66,14 +76,16 @@ STRANGE_LABEL = re.compile(r"[a-z]{6,24}$")
 AD_HINT = re.compile(r"(sdk|cf-|gl-|ad|landing|jump|click|promo|lp-|h5)", re.I)
 
 
-def log(msg):
+def log(msg, path=None):
     line = "[%s] %s" % (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
     try:
-        with open(LOG, "a", encoding="utf-8") as fh:
+        with open(path or LOG, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except OSError:
         pass
-    print(line, file=sys.stderr)
+    # 无人值守模式只落文件，避免 cron 重定向后同一行日志写两遍
+    if path != AUTO_LOG:
+        print(line, file=sys.stderr)
 
 
 def parse_time(s):
@@ -93,14 +105,19 @@ def parse_time(s):
     return datetime.now()
 
 
-def read_logs():
-    """返回 [(time, client, domain, app)]，只取最近 4 天的 ok.tsv。"""
+def iter_logs():
+    """流式产出 (时间字符串, client, domain, app)，只取最近 5 天的 ok.tsv。
+
+    必须流式：5 天日志约 83MB，全量读进 list 峰值内存 330MB，
+    无人值守每 5 分钟跑一次会把小内存 ECS 拖垮。
+    时间保留原始字符串：基线只做字典序比较，窗口内才 strptime，
+    避免每行都做一次日期解析（实测 9.5s -> 约 2s）。
+    """
     files = []
     now = datetime.now()
     for i in range(5):
         day = (now - timedelta(days=i)).strftime("%Y-%m-%d")
         files.extend(sorted(glob.glob(os.path.join(WATCH, "*", day + "-ok.tsv"))))
-    out = []
     for path in files:
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as fh:
@@ -108,15 +125,15 @@ def read_logs():
                     p = line.rstrip("\n").split("\t")
                     if len(p) < 4:
                         continue
-                    try:
-                        t = datetime.strptime(p[0], "%Y-%m-%d %H:%M:%S")
-                    except ValueError:
-                        continue
-                    out.append((t, p[1], p[2].lower().rstrip("."),
-                                p[6] if len(p) > 6 else "other"))
+                    yield (p[0], p[1], p[2].lower().rstrip("."),
+                           p[6] if len(p) > 6 else "other")
         except OSError:
             continue
-    return out
+
+
+def read_logs():
+    """兼容旧调用；新代码请用 iter_logs()。"""
+    return list(iter_logs())
 
 
 def rule_count():
@@ -127,28 +144,29 @@ def rule_count():
         return 0
 
 
-def analyze(at, write=True):
+def analyze(at, write=True, auto=False):
     w0 = at - timedelta(minutes=6)
     w1 = at + timedelta(minutes=1)
-    rows = read_logs()
 
     win = defaultdict(lambda: {"q": 0, "clients": set(), "apps": Counter(),
                                "secs": set(), "first": None})
     base = Counter()
-    base_first = {}
-    for t, cli, dom, app in rows:
-        if t < w0:
+    w0s = w0.strftime("%Y-%m-%d %H:%M:%S")
+    w1s = w1.strftime("%Y-%m-%d %H:%M:%S")
+    for ts, cli, dom, app in iter_logs():
+        if ts < w0s:
             base[dom] += 1
-            if dom not in base_first or t < base_first[dom]:
-                base_first[dom] = t
-        elif t <= w1:
-            s = win[dom]
-            s["q"] += 1
-            s["clients"].add(cli)
-            s["apps"][app] += 1
-            s["secs"].add(t.strftime("%H:%M:%S"))
-            if s["first"] is None or t < s["first"]:
-                s["first"] = t
+            continue
+        if ts > w1s:
+            continue
+        t = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
+        s = win[dom]
+        s["q"] += 1
+        s["clients"].add(cli)
+        s["apps"][app] += 1
+        s["secs"].add(ts[11:])
+        if s["first"] is None or t < s["first"]:
+            s["first"] = t
 
     # 同秒出现的其它新域：广告链常在同一秒拉配置 + 落地页
     sec_new = defaultdict(set)
@@ -178,6 +196,13 @@ def analyze(at, write=True):
         p3 = ".".join(parts[-3:]) if len(parts) >= 3 else p2
         protected = (p2 in PROTECT_PARENTS or p3 in PROTECT_PARENTS
                      or p2 in KNOWN_PARENTS or p2 in wl_raw)
+        # 白名单是按父域整域放行的；命中白名单的域写普通黑名单会被架空，
+        # 必须改走 force-block.txt。用 doh_server 自己的匹配函数判断，
+        # 比只比对 p2 精确父域名更可靠（optimus-ads.amap.com 这种）。
+        try:
+            whitelisted = bool(ds._match_any(dom, wl))
+        except Exception:
+            whitelisted = False
         label = p2.split(".")[0]
         strange = bool(STRANGE_LABEL.fullmatch(label))
 
@@ -215,6 +240,7 @@ def analyze(at, write=True):
         findings.append({
             "domain": dom, "parent": p2, "score": score,
             "reason": " · ".join(why), "protected": protected,
+            "whitelisted": whitelisted,
             "q": s["q"], "clients": len(s["clients"]),
             "apps": dict(s["apps"]), "strange": strange,
             "first": s["first"].strftime("%H:%M:%S") if s["first"] else "-",
@@ -226,10 +252,13 @@ def analyze(at, write=True):
     before = rule_count()
     by_parent = defaultdict(list)
     for f in findings:
-        # 自动拦截必须同时满足：非保护域、陌生父域、域内含广告/SDK 命名
-        # 特征、分数 >=8。只靠「首次出现」会误伤 CDN 调度域。
-        if (not f["protected"] and f["score"] >= 8 and f["strange"]
-                and AD_HINT.search(f["domain"])
+        # 自动拦截必须同时满足：陌生父域、域内含广告/SDK 命名特征、分数 >=8，
+        # 且不是被保护的大厂父域。白名单命中的域仍要处理，但改走 force。
+        # 无人值守模式额外要求窗口内 >=2 次，避免偶发单条误伤。
+        if auto and f["q"] < 2:
+            continue
+        if ((not f["protected"] or f["whitelisted"]) and f["score"] >= 8
+                and f["strange"] and AD_HINT.search(f["domain"])
                 and not SAFE_RE.search(f["domain"])):
             by_parent[f["parent"]].append(f)
     actions = []
@@ -240,27 +269,52 @@ def analyze(at, write=True):
                        if l.strip() and not l.startswith("#"))
     except OSError:
         existing = set()
+    try:
+        force_existing = set(l.strip() for l in open(FORCE, encoding="utf-8")
+                             if l.strip() and not l.startswith("#"))
+    except OSError:
+        force_existing = set()
+    done = set()
     for parent, group in by_parent.items():
         # 反馈归因只写精确域：父域整域收敛交给 autodetect 的严格护栏，
         # 一次点击绝不误伤整个业务父域。
         for g in group:
-            if ("%s**" % g["domain"]) in existing:
+            rule = "%s**" % g["domain"]
+            if rule in existing or rule in force_existing:
                 continue
-            lines.append("# feedback:%s %s" %
-                         (g["domain"], at.strftime("%Y-%m-%d %H:%M")))
-            lines.append("%s**" % g["domain"])
-            actions.append({"domain": g["domain"], "score": g["score"],
-                            "action": "精确域拦截", "reason": g["reason"]})
+            # 无人值守每次最多 2 条，配合每日上限，控制误伤扩散范围
+            if auto and len(actions) >= 2:
+                break
+            tag = "# feedback:%s %s" % (
+                g["domain"], at.strftime("%Y-%m-%d %H:%M"))
+            if g["whitelisted"]:
+                force_lines.append(tag)
+                force_lines.append(rule)
+                actions.append({"domain": g["domain"], "score": g["score"],
+                                "action": "force 强制拦截（白名单父域）",
+                                "reason": g["reason"]})
+            else:
+                lines.append(tag)
+                lines.append(rule)
+                actions.append({"domain": g["domain"], "score": g["score"],
+                                "action": "精确域拦截", "reason": g["reason"]})
+            done.add(g["domain"])
 
     # 保护父域下确凿的高分域写 force（优先级高于白名单）
     for f in findings:
+        rule = "%s**" % f["domain"]
         if (f["protected"] and f["score"] >= 10 and f["strange"]
-                and AD_HINT.search(f["domain"])):
+                and AD_HINT.search(f["domain"])
+                and f["domain"] not in done
+                and rule not in force_existing and rule not in existing):
+            if auto and len(actions) >= 2:
+                break
             force_lines.append("# feedback:%s %s" %
                                (f["domain"], at.strftime("%Y-%m-%d %H:%M")))
-            force_lines.append("%s**" % f["domain"])
+            force_lines.append(rule)
             actions.append({"domain": f["domain"], "score": f["score"],
                             "action": "force 强制拦截", "reason": f["reason"]})
+            done.add(f["domain"])
 
     if lines and write:
         with open(SHARED, "a", encoding="utf-8") as fh:
@@ -282,9 +336,12 @@ def analyze(at, write=True):
         "actions": actions,
         "rules_before": before,
         "rules_after": rule_count(),
+        "auto": auto,
         "skipped_protected": [f["domain"] for f in findings if f["protected"]][:10],
     }
-    if write:
+    # 无人值守每 5 分钟一次，不写历史报告（避免文件无限膨胀），
+    # 只留日志与规则行里的 # feedback: 标签，随时可整段回滚。
+    if write and not auto:
         hist = []
         try:
             with open(REPORT, "r", encoding="utf-8") as fh:
@@ -296,11 +353,27 @@ def analyze(at, write=True):
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(hist[-50:], fh, ensure_ascii=False, indent=1)
         os.replace(tmp, REPORT)
-    log("反馈归因 %s 窗口 %s-%s 放行%d条/%d域 命中%d 自动拦%d 规则%d→%d" %
-        (report["at"], report["window"][0], report["window"][1],
-         report["allow_in_window"], report["unique_domains"],
-         len(findings), len(actions), before, report["rules_after"]))
+    log("%s反馈归因 %s 窗口 %s-%s 放行%d条/%d域 命中%d 自动拦%d 规则%d→%d" %
+        ("[auto] " if auto else "", report["at"], report["window"][0],
+         report["window"][1], report["allow_in_window"],
+         report["unique_domains"], len(findings), len(actions),
+         before, report["rules_after"]), AUTO_LOG if auto else LOG)
     return report
+
+
+AUTO_COUNT_FILE = os.path.join(BASE, "auto-feedback-count.json")
+AUTO_DAILY_LIMIT = 20
+
+
+def auto_budget():
+    """无人值守每日自动拦截上限；返回 (今天已用, 计数文件当前内容)。"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        with open(AUTO_COUNT_FILE, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        data = {}
+    return int(data.get(today, 0)), {today: int(data.get(today, 0))}
 
 
 def main():
@@ -308,9 +381,33 @@ def main():
     ap.add_argument("--at", default="", help="广告时刻，如 23:07 或 2026-11-09 23:07")
     ap.add_argument("--json", action="store_true", help="stdout 输出 JSON")
     ap.add_argument("--dry-run", action="store_true", help="只归因不写规则")
+    ap.add_argument("--auto", action="store_true",
+                    help="无人值守模式：扫最近 6 分钟，自动拦确凿广告域；"
+                         "每次最多 2 条、每天最多 %d 条" % AUTO_DAILY_LIMIT)
     a = ap.parse_args()
+    if a.auto:
+        used, counter = auto_budget()
+        if used >= AUTO_DAILY_LIMIT:
+            print("[auto] 今日自动拦截已达上限 %d，跳过" % AUTO_DAILY_LIMIT)
+            return 0
+        # doh_server 热加载规则时会 print 到 stdout，重定向掉，
+        # 保证 --json 纯净、cron 日志不重复
+        with contextlib.redirect_stdout(sys.stderr):
+            r = analyze(datetime.now(), write=not a.dry_run, auto=True)
+        if a.dry_run:
+            r["dry_run"] = True
+        if r["actions"] and not a.dry_run:
+            counter[datetime.now().strftime("%Y-%m-%d")] = used + len(r["actions"])
+            tmp = AUTO_COUNT_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(counter, fh)
+            os.replace(tmp, AUTO_COUNT_FILE)
+        if a.json:
+            print(json.dumps(r, ensure_ascii=False))
+        return 0
     at = parse_time(a.at) if a.at else datetime.now()
-    r = analyze(at, write=not a.dry_run)
+    with contextlib.redirect_stdout(sys.stderr):
+        r = analyze(at, write=not a.dry_run)
     if a.dry_run:
         r["dry_run"] = True
     if a.json:

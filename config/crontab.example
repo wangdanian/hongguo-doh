@@ -3,3 +3,5 @@ SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 */30 * * * * root flock -n /tmp/autodetect.lock /usr/bin/python3 /opt/hongguo-doh/autodetect.py >> /opt/hongguo-doh/autodetect.log 2>&1
+# 无人值守广告反馈归因：每 5 分钟扫最近 6 分钟放行日志，确凿广告域自动写精确域规则
+*/5 * * * * root flock -n /tmp/auto-feedback.lock /usr/bin/python3 /opt/hongguo-doh/ad_feedback.py --auto >/dev/null 2>>/opt/hongguo-doh/auto-feedback-err.log

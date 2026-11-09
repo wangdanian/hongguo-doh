@@ -965,3 +965,13 @@ tianwenca.com**
 # auto:stranger-parent:opinstallres.com 子域1个 查询47次 设备4台 2026-11-09 23:21
 opinstallres.com**
 **.opinstallres.com**
+
+# ---- autodetect 自动拦截 2026-11-09 23:30（共 1 条）----
+# auto:public:log-sdk.ksapisrv.com 2026-11-09 23:30
+log-sdk.ksapisrv.com**
+
+# ---- 反馈归因 2026-11-09 23:44 搜索广告素材域（23:41:46 预取，23:43-45 看到） ----
+# feedback:lf3-ad.searchpstatp.com 2026-11-09 23:44
+lf3-ad.searchpstatp.com**
+# 覆盖 lf1/lf3/p6 等编号变体；searchpstatp.com 是独立域，不影响白名单里的 pstatp.com
+*-ad.searchpstatp.com**

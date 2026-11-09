@@ -70,6 +70,10 @@ SHOULD_BLOCK = [
     "tao.ad.cn.nt.ad.tengine.ingress.alibacorp.com.gds.alibabadns.com",
     "zz-newrandom.1rtb.com", "zz-newrandom.adview.cn",
     "zz-newrandom.ugdtimg.com", "zz-newrandom.mmstat.com",
+    # 低频历史广告域：自动发现的「首次出现/突发」抓不到，--auto 通道补漏
+    # （2026-11-09 23:43 实测 lf3-ad.searchpstatp.com 预取广告素材）
+    "lf3-ad.searchpstatp.com", "lf1-ad.searchpstatp.com",
+    "p6-ad.searchpstatp.com",
 ]
 
 SHOULD_ALLOW = [
@@ -91,6 +95,8 @@ SHOULD_ALLOW = [
     "p3-novel-sign.byteimg.com", "www.bytedance.com",
     "frontier-aweme.snssdk.com", "opencdn.jomodns.com",
     "lf3-reading.fqnovelpic.com",
+    # searchpstatp.com 是独立广告域，别把白名单里的 pstatp.com 视频 CDN 一起拦了
+    "pull-l3-hs.pstatp.com", "aweme.snssdk.com",
 ]
 
 
