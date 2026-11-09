@@ -1002,3 +1002,8 @@ toblog.volceapplog.com**
 # 只拦精确域会漏 rta1/rta3 等编号变体，这里补编号通配。
 # feedback:companion-rta 2026-11-10 00:35
 rta*.wesure100.com**
+
+# ---- autodetect 已知广告父域自动收敛 2026-11-10 01:00 ----
+# auto:parent-collapse:volceapplog.com 子域2个全部已被拦
+volceapplog.com**
+**.volceapplog.com**
