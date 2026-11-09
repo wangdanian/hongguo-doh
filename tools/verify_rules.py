@@ -74,6 +74,8 @@ SHOULD_BLOCK = [
     # （2026-11-09 23:43 实测 lf3-ad.searchpstatp.com 预取广告素材）
     "lf3-ad.searchpstatp.com", "lf1-ad.searchpstatp.com",
     "p6-ad.searchpstatp.com",
+    # RTA 实时竞价广告决策接口：精确域规则会漏编号变体（2026-11-10 00:35）
+    "rta1.wesure100.com", "rta2.wesure100.com", "rta3.wesure100.com",
 ]
 
 SHOULD_ALLOW = [
@@ -101,6 +103,10 @@ SHOULD_ALLOW = [
     # （2026-11-10 00:20 误拦 jump.m.cmbchina.*，已回滚并加护栏）
     "jump.m.cmbchina.cn", "jump.m.cmbchina.com",
     "netpay.cmbchina.com", "ccgateway.paas.cmbchina.com",
+    # 广告触发时伴随出现的通用资源/素材通道：与正片共用 CDN，拦了会白屏。
+    # 2026-11-10 00:35 实测 zt-dl* 与广告触发吻合率仅 10%，属 App 常规下载。
+    "www.wesure100.com", "zt-dl-lf1.bytegslb.com",
+    "lf-normal-gr-sourcecdn.bytegecko.com", "v26-reading-video.qznovelvod.com",
 ]
 
 

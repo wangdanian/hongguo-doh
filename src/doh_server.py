@@ -987,6 +987,7 @@ padding:2px 10px;font-size:12px;font-weight:600}</style></head><body>
 与近 3 天历史基线比对，自动找出首次出现的陌生域并写入拦截规则。
 规则带 <code># feedback:</code> 标签，可整段删除回滚。</p>
 __SUMMARY__
+__TRIGGERS__
 <h2>本次动作</h2>
 __ACTIONS__
 <h2>可疑域（按分数）</h2>
@@ -1144,6 +1145,7 @@ class DoHHandler(BaseHTTPRequestHandler):
             acts = "<p class='k'>未写入任何规则。</p>"
             summary = "<p style='color:#c00'>脚本执行失败，服务器日志见 ad-feedback.log</p>"
             cnt, at_s, win_s = "失败", at or "当前", "-"
+            trig_html = ""
         else:
             acts_list = data.get("actions", [])
             findings = data.get("findings", [])
@@ -1173,9 +1175,40 @@ class DoHHandler(BaseHTTPRequestHandler):
             at_s = _h.escape(data.get("at", ""))
             win_s = " ~ ".join(data.get("window", ["-", "-"]))
 
+            # 广告触发信号：拦截日志里命中广告规则的记录，以及触发前后放行的
+            # 容器/素材通道。这些通道多与正片共用 CDN，只报告、不自动拦。
+            trig_n = data.get("ad_triggers", 0)
+            blocked_n = data.get("blocked_in_window", 0)
+            comps = data.get("companions", [])
+            trig_doms = data.get("ad_trigger_domains", [])
+            if trig_n:
+                comp_rows = "".join(
+                    "<tr><td><code>%s</code><br><span class='k'>%s · 窗口 %d 次 · "
+                    "历史 %d 次%s</span></td></tr>"
+                    % (_h.escape(str(c["domain"])), _h.escape(str(c["at"])),
+                       c.get("q", 0), c.get("base", 0),
+                       " · 与正片共用 CDN" if c.get("shared_cdn") else "")
+                    for c in comps[:8])
+                trig_html = (
+                    "<h2>广告触发信号</h2>"
+                    "<p style='background:#e8f8ee;border-radius:10px;padding:10px 14px'>"
+                    "窗口内拦截 <b>%d</b> 条，其中 <b>%d</b> 次是广告请求（%s），"
+                    "规则已全部拦下。</p>"
+                    "<p class='k'>广告触发前后 5 秒放行的域如下。它们多数与正片共用 CDN，"
+                    "拦掉会白屏，因此只报告、不自动拦截；这类属于 DNS 层边界。</p>"
+                    "<table><tr><th>伴随放行的容器 / 素材通道</th></tr>%s</table>"
+                    % (blocked_n, trig_n, _h.escape(", ".join(trig_doms[:4])),
+                       comp_rows or "<tr><td class='k'>无</td></tr>"))
+            else:
+                trig_html = (
+                    "<h2>广告触发信号</h2><p class='k'>本窗口没有检测到广告域请求。"
+                    "若确实看到广告，通常是已缓存素材、信息流原生混排广告，"
+                    "或客户端自己渲染的倒计时，DNS 层无法删除。</p>")
+
         html = (_FEEDBACK_PAGE.replace("__COUNT__", cnt)
                 .replace("__AT__", at_s).replace("__WINDOW__", win_s)
                 .replace("__SUMMARY__", summary)
+                .replace("__TRIGGERS__", trig_html)
                 .replace("__ACTIONS__", acts)
                 .replace("__ROWS__", rows))
         self._send(200, html, "text/html; charset=utf-8")

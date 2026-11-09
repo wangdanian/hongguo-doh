@@ -996,3 +996,9 @@ toblog.volceapplog.com**
 **.3r6fs2855.com**
 **.id6.me**
 **.easytomessage.com**
+
+# ---- 2026-11-10 00:35 广告竞价接口变体覆盖 ----
+# rta2.wesure100.com 是 RTA 实时竞价广告决策接口，历史上 11-06/07/09 一直放行；
+# 只拦精确域会漏 rta1/rta3 等编号变体，这里补编号通配。
+# feedback:companion-rta 2026-11-10 00:35
+rta*.wesure100.com**

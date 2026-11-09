@@ -21,6 +21,10 @@
 被「纯字母随机父域 + jump 命名」误判为广告并自动拦截，已整段回滚。
 2026-11-09 23:43 实证漏点 lf3-ad.searchpstatp.com（11-06 出现过 2 次、
 23:41:46 又预取 2 次，低频历史广告域自动发现永远抓不到）。
+2026-11-10 00:35 实证盲区：*-reading-ad.qznovelvod.com 已被拦，但归因只读
+放行日志，报告里只剩 CDN 调度域、0 动作。现改为反向块读 doh_log.txt 取
+窗口内 BLOCK 事件，命中广告规则即记为「广告触发」，并把触发前后 5 秒放行
+的域列为伴随的容器/素材通道（只报告、不自动拦，避免误伤共用 CDN）。
 
 安全护栏：白名单/保护父域/已拦域/业务 CDN 域一律跳过；只写精确域或
 确认整域都是新域的父域；规则行带 #feedback: 标签，可整段 grep 回滚。
@@ -45,6 +49,20 @@ FORCE = os.path.join(BASE, "force-block.txt")
 REPORT = os.path.join(BASE, "ad-feedback.json")
 LOG = os.path.join(BASE, "ad-feedback.log")
 AUTO_LOG = os.path.join(BASE, "auto-feedback.log")
+DOH_LOG = os.path.join(BASE, "doh_log.txt")
+
+# 拦截日志里的「广告触发」信号：命中这些规则的域说明客户端刚刚请求过广告。
+# 2026-11-10 00:35 实证：*-reading-ad.qznovelvod.com 已被拦，但归因只读放行
+# 日志，完全看不到这次触发，报告里只有 CDN 调度域、0 动作，用户只能继续报时刻。
+AD_TRIGGER_RE = re.compile(
+    r"(reading-ad|ad-sign|ecom|rta\d|promo|landing|splash|adview|mgsdk|"
+    r"dailygn|qiezibenpao|tianwenca|searchpstatp|opinstall|deepinstall|"
+    r"-ad\.|ads\d|adx|union|click|jump)", re.I)
+
+# 广告容器/素材下发通道的命名特征，只用于报告里排序，不用于自动拦截。
+COMPANION_RE = re.compile(
+    r"(sourcecdn|-dl|download|material|creative|splash|config|zip|pkg|res|"
+    r"(?:^|[.-])sdk(?:[.-]|$))", re.I)
 
 # 业务 / 视频 / 系统域：这些不可能是「新广告落地页」，先排掉，
 # 避免把正片 CDN、苹果推送、DNS 调度误判成广告。
@@ -141,6 +159,55 @@ def iter_logs():
 def read_logs():
     """兼容旧调用；新代码请用 iter_logs()。"""
     return list(iter_logs())
+
+
+def iter_block_events(w0s, w1s):
+    """反向块读 doh_log.txt，产出窗口内被拦的 (时间串, 域, 命中规则)。
+
+    doh_log.txt 约 90MB，每 5 分钟正向全读一遍不划算。按 1MB 从文件尾部
+    反向读，一旦某块的时间戳已早于窗口起点就停止，实测只读 2~5MB。
+    """
+    try:
+        size = os.path.getsize(DOH_LOG)
+    except OSError:
+        return
+    chunk = 1024 * 1024
+    pos = size
+    carry = b""
+    seen = set()
+    with open(DOH_LOG, "rb") as fh:
+        while pos > 0:
+            start = max(0, pos - chunk)
+            fh.seek(start)
+            buf = fh.read(pos - start)
+            pos = start
+            data = buf + carry
+            lines = data.split(b"\n")
+            carry = lines[0]          # 跨块残行，与上一块拼接
+            for raw in reversed(lines[1:]):
+                line = raw.decode("utf-8", "replace").rstrip("\r")
+                if not line:
+                    continue
+                p = line.split("\t")
+                if len(p) < 5:
+                    continue
+                ts = p[0]
+                if ts > w1s:
+                    continue
+                if ts < w0s:
+                    return          # 时间倒序，已经越过窗口起点
+                if p[4] != "BLOCK":
+                    continue
+                key = (ts, p[2], p[6] if len(p) > 6 else "")
+                if key in seen:
+                    continue
+                seen.add(key)
+                yield (ts, p[2].lower().rstrip("."), key[2])
+    for raw in [carry]:
+        line = raw.decode("utf-8", "replace").rstrip("\r")
+        p = line.split("\t")
+        if len(p) >= 5 and w0s <= p[0] <= w1s and p[4] == "BLOCK":
+            yield (p[0], p[2].lower().rstrip("."), p[6] if len(p) > 6 else "")
 
 
 def rule_count():
@@ -275,6 +342,55 @@ def analyze(at, write=True, auto=False):
         })
     findings.sort(key=lambda x: (-x["score"], x["domain"]))
 
+    # ---- 广告触发信号：拦截日志里「客户端刚刚请求过广告」 ----
+    # 只读放行日志时，广告域被拦掉后归因窗口里剩下的全是 CDN 调度域，
+    # 分数全低、0 动作，系统看起来像没干活。这里把已拦的广告请求当成
+    # 最高置信信号，并把触发前后 5 秒放行的域列成「容器/素材通道」。
+    block_rows = list(iter_block_events(w0s, w1s))
+    triggers = []
+    seen_trig = set()
+    for ts, dom, rule in block_rows:
+        if not (AD_TRIGGER_RE.search(dom) or AD_TRIGGER_RE.search(rule)):
+            continue
+        # A / AAAA / HTTPS 三条查询是同一次广告请求，按 (秒, 域) 去重，
+        # 否则「广告触发次数」会被放大三倍。
+        if (ts, dom) in seen_trig:
+            continue
+        seen_trig.add((ts, dom))
+        triggers.append((ts, dom, rule))
+    trig_secs = []
+    for ts, _, _ in triggers:
+        h, m, s = (int(x) for x in ts[11:].split(":"))
+        trig_secs.append(h * 3600 + m * 60 + s)
+
+    def near_ad(sec):
+        h, m, s = (int(x) for x in sec.split(":"))
+        v = h * 3600 + m * 60 + s
+        return any(abs(v - t) <= 5 for t in trig_secs)
+
+    # 伴随域大多与正片共用 CDN（sourcecdn / 字节系 CDN / GSLB），
+    # 自动拦会白屏，所以只报告、绝不自动写规则。
+    companions = []
+    if trig_secs:
+        for dom, s in win.items():
+            hits = [sec for sec in s["secs"] if near_ad(sec)]
+            if not hits:
+                continue
+            parts = dom.split(".")
+            if len(parts) < 2:
+                continue
+            p2 = ".".join(parts[-2:])
+            companions.append({
+                "domain": dom, "q": s["q"], "at": sorted(hits)[0],
+                "base": base[dom],
+                "material_hint": bool(COMPANION_RE.search(dom)),
+                "shared_cdn": bool(SAFE_RE.search(dom)) or p2 in KNOWN_PARENTS,
+                "blocked": ds.match_rule(dom, bl, wl, force) is not None,
+            })
+        companions.sort(key=lambda x: (not x["material_hint"], x["shared_cdn"],
+                                      x["blocked"], -x["q"], x["domain"]))
+        companions = companions[:25]
+
     # 只自动拦非保护域、分数 >=6 的；父域下所有窗口域都达标才整域收敛
     before = rule_count()
     by_parent = defaultdict(list)
@@ -364,6 +480,10 @@ def analyze(at, write=True, auto=False):
         "unique_domains": len(win),
         "findings": findings[:40],
         "actions": actions,
+        "blocked_in_window": len(block_rows),
+        "ad_triggers": len(triggers),
+        "ad_trigger_domains": sorted({d for _, d, _ in triggers})[:12],
+        "companions": companions,
         "rules_before": before,
         "rules_after": rule_count(),
         "auto": auto,
@@ -383,10 +503,12 @@ def analyze(at, write=True, auto=False):
         with open(tmp, "w", encoding="utf-8") as fh:
             json.dump(hist[-50:], fh, ensure_ascii=False, indent=1)
         os.replace(tmp, REPORT)
-    log("%s反馈归因 %s 窗口 %s-%s 放行%d条/%d域 命中%d 自动拦%d 规则%d→%d" %
+    log("%s反馈归因 %s 窗口 %s-%s 放行%d条/%d域 拦截%d 广告触发%d "
+        "伴随域%d 命中%d 自动拦%d 规则%d→%d" %
         ("[auto] " if auto else "", report["at"], report["window"][0],
          report["window"][1], report["allow_in_window"],
-         report["unique_domains"], len(findings), len(actions),
+         report["unique_domains"], len(block_rows), len(triggers),
+         len(companions), len(findings), len(actions),
          before, report["rules_after"]), AUTO_LOG if auto else LOG)
     return report
 
@@ -446,6 +568,16 @@ def main():
         print("反馈归因 %s：窗口 %s ~ %s，放行 %d 条 / %d 域" %
               (r["at"], r["window"][0], r["window"][1],
                r["allow_in_window"], r["unique_domains"]))
+        print("拦截 %d 条，其中广告触发 %d 次（%s）" %
+              (r["blocked_in_window"], r["ad_triggers"],
+               ", ".join(r["ad_trigger_domains"][:5]) or "无"))
+        if r["companions"]:
+            print("广告触发前后放行的素材/容器通道（仅报告，不自动拦）：")
+            for c in r["companions"][:10]:
+                print("  %-52s %s 次  基线%d  %s%s" %
+                      (c["domain"], c["q"], c["base"],
+                       "素材特征 " if c["material_hint"] else "",
+                       "与正片共用CDN" if c["shared_cdn"] else ""))
         for f in r["findings"][:20]:
             print("  [%2d] %-52s %s%s" %
                   (f["score"], f["domain"], f["reason"],
