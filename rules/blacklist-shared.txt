@@ -715,6 +715,11 @@ ad.xhey.top**
 track-gateway.y5kfpt.com**
 track-config.y5kfpt.com**
 mobads-logs.baidu.com**
+# 2026-11-11 00:15 实测：百度移动广告主域被上游 allow 的 baidu.com 父域加白放行走漏。
+# anti-AD 仅收录 mobads.baidu.cn / mobads-logs.baidu.com，没收录 .com 主域，故本地补。
+mobads.baidu.com**
+# 百度移动广告（shifen 是百度商业/广告系统域名），同理主域漏收录
+mobads.e.shifen.com**
 dy-download-a.yangyi02.com**
 
 # 视频广告域：现有规则只覆盖 -aw-reading-video / -aw-cold / -aw-x，

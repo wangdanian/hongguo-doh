@@ -801,8 +801,16 @@ def handle_query(query, client, ua="", user=None):
             ub = load_upstream_block()
             ua = load_upstream_allow()
             hit = _upstream_hit(name, ub)
-            if hit and not _upstream_hit(name, ua) and not _match_any(name, wl):
-                rule = "upstream:" + hit
+            if hit:
+                # 上游例外（allow）只在「不比拦截规则更宽」时生效：
+                #   allow 命中若是 hit 的父域（更宽，如 baidu.com 之于 ada.baidu.com），
+                #   则拦截优先——不让父域例外把旗下广告子域整段放行。
+                #   allow 同级或更具体（确凿的 @@ 例外）才放行。
+                #   手工白名单(wl)始终最高优先，不受此影响。
+                allow_hit = _upstream_hit(name, ua)
+                if (not allow_hit or hit.endswith("." + allow_hit)) \
+                        and not _match_any(name, wl):
+                    rule = "upstream:" + hit
 
     if rule is not None:
         response, action, bucket = build_blocked_response(query, qtype, qend), "BLOCK", "blocked"

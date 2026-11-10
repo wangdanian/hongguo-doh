@@ -71,18 +71,25 @@ def _http_get(url, timeout=30, retries=3):
 
 
 def _strip_adguard(line):
-    """把 anti-AD / AdGuard 风格的一行规约成 (token, is_allow) 或 None。"""
+    """把 anti-AD / AdGuard 风格的一行规约成 (token, is_allow) 或 None。
+
+    关键：允许例外 @@||x.com^ 与 @@x.com 同义，必须把 @@ 与 || 前缀都剥掉，
+    存成干净后缀 x.com。否则 doh_server 的父域匹配与 aggregate() 的宽父域护栏
+    都识别不到这个父域，导致 cpro/union/wm/mobads.baidu.com 等广告子域被
+    「@@||baidu.com^」整段放行。
+    """
     s = line.strip()
-    if not s or s.startswith("!") or s.startswith("#") or s.startswith("@@"):
-        # 注释、正则(/.../)、异常(@@) 单独处理
-        if s.startswith("@@||") or s.startswith("@@"):
-            body = s[2:] if s.startswith("@@") else s
-            return _adguard_body(body), True
-        if s.startswith("/") and s.endswith("/"):
-            return None  # 正则规则：交由签名层 + 显式 || 行覆盖，这里跳过
+    if not s or s.startswith("!") or s.startswith("#"):
         return None
+    if s.startswith("@@"):
+        body = s[2:]
+        if body.startswith("||"):
+            body = body[2:]
+        return _adguard_body(body), True
     if s.startswith("||"):
         return _adguard_body(s[2:]), False
+    if s.startswith("/") and s.endswith("/"):
+        return None  # 正则规则：交由签名层 + 显式 || 行覆盖，这里跳过
     return None
 
 
@@ -150,6 +157,34 @@ def aggregate():
         aw += w_a
         print("  [ok] %-12s +%-7d suffix +%-5d wild  allow +%-6d  (%.1fs)"
               % (name, len(s1), len(w1), len(a1), time.time() - t0))
+    # 宽父域/冲突允许例外剔除（必须在「允许集优先」减 block 之前做，否则
+    # baidu.com 这类父域例外会把旗下 cpro/union/wm.baidu.com 等广告子域一并
+    # 放行，等于废掉上游对百度广告的拦截）：
+    #  - allow 中某域 X 是 block 中某广告子域的父域  -> 移除 X（连同 X 自身若也在 block）
+    #  - 正常 baidu 业务域（www/m/map/pan）不在 block 中，保留，本就不会被拦。
+    block_flat = bs | set(bw)
+    wide = set()
+    for b in block_flat:
+        for suf in _domain_suffixes(b):
+            if suf in as_:
+                wide.add(suf)
+    if wide:
+        as_ -= wide
+        print("  [guard] 剔除宽父域/冲突允许例外 %d 个 -> %s"
+              % (len(wide), ", ".join(sorted(wide)[:12])))
+    # 通配 allow：若某条能命中任一 block 域，整条移除（避免放行广告子域）
+    if aw:
+        aw_pats = [re.compile(g.replace("**", ".*").replace("*", "[^.]*")) for g in aw]
+        keep_aw, removed_aw = [], []
+        for g, pat in zip(aw, aw_pats):
+            if any(pat.fullmatch(b) for b in block_flat):
+                removed_aw.append(g)
+            else:
+                keep_aw.append(g)
+        if removed_aw:
+            aw = keep_aw
+            print("  [guard] 剔除宽通配允许例外 %d 条 -> %s"
+                  % (len(removed_aw), ", ".join(removed_aw[:12])))
     # 允许集优先：白名单里的后缀/通配从拦截集里移除，避免自相矛盾
     allow_all = set(as_)
     for g in aw:
@@ -242,10 +277,20 @@ def _load_negative_set():
     return allowed - blocked
 
 
-def _subtract_neg(block_suf, block_wild, neg):
-    """把业务域（含其各级父域）从拦截集剔除，并收集被剔除的通配。返回 (removed_suf, removed_wild)。"""
+def _subtract_neg(block_suf, block_wild, neg, ad_parents=None):
+    """把业务域（含其各级父域）从拦截集剔除，并收集被剔除的通配。返回 (removed_suf, removed_wild)。
+
+    ad_parents: 2 段广告父域集合（如 baidu.com）。这些父域下的负集域一律
+    不动——避免把 cpro/union/eclick 等广告子域从上游 block 里剔除、或加白后
+    因父域匹配把整个广告父域旗下所有被拦子域一并放行。
+    """
+    ad_parents = ad_parents or set()
     removed_suf = 0
     for d in neg:
+        parts = d.split(".")
+        p2 = ".".join(parts[-2:]) if len(parts) >= 2 else d
+        if p2 in ad_parents:
+            continue  # 广告父域下的域：保持被拦，不加白
         for suf in _domain_suffixes(d):
             if suf in block_suf:
                 block_suf.discard(suf)
@@ -273,15 +318,34 @@ def main():
     print("聚合完成：block suffix=%d wild=%d | allow suffix=%d wild=%d"
           % (len(bs), len(bw), len(as_), len(aw)))
 
-    # 护栏：剔除与本地真实业务域冲突的上游条目，零误伤
+    # 护栏：剔除与本地真实业务域冲突的上游条目，零误伤。
+    # 「负集」是双刃剑：日志里「只放行、从不拦截」的域既有真业务域，
+    # 也有「上游还没收录、所以一直放行」的广告子域（cpro/union/eclick…）。
+    # 若把它们加进允许集/从 block 剔除，会因父域匹配把整个广告父域
+    # （baidu.com）旗下所有被拦子域一并放行。
+    # 对策：统计每个 2 段父域下被上游收录的「被拦子域」数量，≥K 视为广告网络，
+    # 其下的负集域一律保持被拦、不加白。
     neg = _load_negative_set()
     if neg:
-        rs, rw = _subtract_neg(bs, bw, neg)
+        pc = {}
+        for b in bs:
+            parts = b.split(".")
+            if len(parts) >= 3:
+                p2 = ".".join(parts[-2:])
+                pc[p2] = pc.get(p2, 0) + 1
+        AD_K = 5
+        ad_parents = {p for p, c in pc.items() if c >= AD_K}
+        rs, rw = _subtract_neg(bs, bw, neg, ad_parents)
+        added = 0
         for d in neg:
-            for suf in _domain_suffixes(d):
-                as_.add(suf)  # 显式允许，日志轮转后也不漏保护
-        print("护栏：剔除业务域冲突 suffix=%d wild=%d；并入允许集 %d 个业务域"
-              % (rs, rw, len(neg)))
+            parts = d.split(".")
+            p2 = ".".join(parts[-2:]) if len(parts) >= 2 else d
+            if p2 in ad_parents:
+                continue  # 广告父域下的域不加白
+            as_.add(d)
+            added += 1
+        print("护栏：剔除业务域冲突 suffix=%d wild=%d；广告父域 %d 个；并入允许集 %d 个业务域(非广告父域)"
+              % (rs, rw, len(ad_parents), added))
 
     if args.check:
         _check_collateral(bs, bw)

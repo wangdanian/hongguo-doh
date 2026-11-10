@@ -2,6 +2,29 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
+## 0.1.10 · 修复上游允许集父域误放行广告子域（baidu / shifen 等）
+
+- **根因**：上游层（anti-AD）把 `baidu.com` 这类裸父域放进了允许集，而
+  `doh_server.py` 对允许集做**父域匹配**——于是 `baidu.com` 在允许集里，旗下所有
+  `*.baidu.com`（含 `ada` / `adavideo` / `as` / `cpro` / `eclick` / `union` /
+  `wm` 等确属广告/联盟的子域，上游 block 里共 241 条）被整段放行。另：负集护栏
+  把"日志里只放行、从不拦截"的域（含被父域误放行的广告子域）学成白名单，形成正反馈环路。
+- `src/fetch_upstream.py`：
+  - `_strip_adguard` 对 `@@||x.com^` 例外去掉 `@@` 的同时也去掉 `||` 前缀，存成
+    干净后缀，避免 `||baidu.com` 这种脏值让护栏与父域匹配都识别不到。
+  - 负集护栏新增**广告父域过滤**：统计每个 2 段父域下被上游收录的"被拦子域"数量，
+    ≥5 视为广告网络（本次识别 527 个），其下的负集域一律**保持被拦、不加白**，
+    既不再误放行广告子域，也不再因加白父域而连带放行整族。允许集从 7572 降到 6245。
+  - 既有宽父域护栏（剔除 `@@` 例外中与 block 冲突的父域）保留并互补。
+- `src/doh_server.py`：上游允许集覆盖逻辑改为"更具体者胜"——允许命中若是拦截命中的
+  **父域（更宽，如 `baidu.com` 之于 `ada.baidu.com`）则拦截优先**，不再放任父域例外
+  把旗下广告子域整段放行；允许命中同级或更具体（确凿的 `@@` 例外）才放行；手工白名单
+  始终最高优先，不受影响。
+- `rules/blacklist-shared.txt`：补 `mobads.baidu.com**` / `mobads.e.shifen.com**`（百度移动广告主域，上游未收录、手工规则优先级即时止血）。
+- 实测（IP 直连端点 `118.178.183.90`）：`ada/adavideo/as/cpro/eclick/union/wm/mobads`
+  等百度广告子域全部 BLOCK；`www/pan/m/map/tieba.baidu.com` 与 apple/taobao/qq/google
+  等大站正常 ALLOW，`verify_rules.py` 全量回归 `FAILED=0 / 116`。
+
 ## 0.1.9 · 订阅社区聚合名单（上游层）+ 零误伤护栏
 
 - 调研 GitHub 同类开源方案，结论：**本项目没有闭门造车**。签名层
