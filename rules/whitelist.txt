@@ -95,7 +95,8 @@ iqiyipic.com
 # 注意：只放功能域，广告所在的 zijieapi / byteimg 绝不在列
 fqnovel.com
 fqnovelpic.com
-snssdk.com
+# snssdk.com 不再整段白名单：其下 is.snssdk.com / ad.snssdk.com 是字节广告 SDK 主通道，
+# 已在 blacklist-shared 显式拦截；视频域(v*/ib*/aweme*等)不在黑名单，删此条后仍为默认放行，不误伤。
 bytegecko.com
 bytescm.com
 pstatp.com

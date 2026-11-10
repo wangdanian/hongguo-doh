@@ -307,6 +307,25 @@ def _subtract_neg(block_suf, block_wild, neg, ad_parents=None):
     return removed_suf, removed_wild
 
 
+def reload_doh_service():
+    """聚合写盘后，主动让运行中的 doh_server 立即重载规则（systemctl reload = 发 SIGHUP，零中断）。
+
+    这样上游名单刷新后「立刻生效」，无需等下一次请求，更不依赖手动 restart。
+    本地调试环境没有 systemctl 时静默跳过——doh_server 本身的 mtime 惰性热加载仍会兜底。
+    """
+    try:
+        import subprocess
+        r = subprocess.run(["systemctl", "reload", "hongguo-doh.service"],
+                           capture_output=True, text=True, timeout=15)
+        if r.returncode == 0:
+            print("[reload] 已通知 doh_server 立即重载规则（零中断）", flush=True)
+        else:
+            print("[reload] systemctl reload 返回 %d（可忽略，mtime 热加载兜底）"
+                  % r.returncode, flush=True)
+    except Exception as e:
+        print("[reload] 跳过（非 systemd 托管环境：%s）" % e, flush=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="只打印统计，不写盘")
@@ -357,6 +376,7 @@ def main():
     atomic_write(BLOCK_FILE, render(bs, bw))
     atomic_write(ALLOW_FILE, render(as_, aw))
     print("已写入:\n  %s\n  %s" % (BLOCK_FILE, ALLOW_FILE))
+    reload_doh_service()
 
 
 if __name__ == "__main__":

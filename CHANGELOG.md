@@ -2,6 +2,23 @@
 
 本项目的开发历程按功能阶段记录。版本号以 GitHub Release / tag 为准。
 
+## 0.1.11 · 补齐字节/穿山甲广告拦截 + 白名单误放行修复 + SSH 直部署
+
+- **红果广告真根因是字节/穿山甲体系，不是百度**。实测线上 DoH 端点：百度系早已全 BLOCK，
+  漏网的是字节广告 SDK 与穿山甲(Pangle)——`is.snssdk.com` / `ad.snssdk.com`（广告配置/SDK
+  初始化主通道）、`pangolin.pangle.io` / `ad.pangle.io` / `aduser.pangle.io` /
+  `pangle.hoyoverse.com` / `c.pangle.cn`、`ad.kuaishou.com` 系、`ad.qq.com` / `union.qq.com`。
+  已在 `rules/blacklist-shared.txt` 显式补齐。
+- **致命 bug：`whitelist.txt` 第 98 行 `snssdk.com` 整段白名单**（白名单优先级高于黑名单），
+  把 `is.snssdk.com` 广告 SDK 也一并放行。已删除该条——视频域 `v*` / `ib*` / `aweme*` 等
+  不在黑名单，删后仍为默认放行，**不影响看剧**；仅 `is/ad/adx/ace.snssdk.com` 被拦。
+- **部署去云助手化**：新增 `deploy/hongguo-doh.{service,path,restart.service}`——
+  `hongguo-doh.path` 监控 `doh_server.py` 变化后自动重启，改代码落地即生效，不再依赖阿里云
+  云助手 RunCommand API（之前因限流导致改完没立刻生效）。`doh_server.py` 加 SIGHUP 信号做
+  零中断规则重载；`fetch_upstream.py` 聚合写盘后自动 `systemctl reload`。
+- 实测：字节/百度/快手/腾讯/穿山甲广告域全 BLOCK；`aweme.snssdk.com`/`www.douyin.com`/
+  `www.baidu.com` 等业务域正常 ALLOW，无连带误伤。
+
 ## 0.1.10 · 修复上游允许集父域误放行广告子域（baidu / shifen 等）
 
 - **根因**：上游层（anti-AD）把 `baidu.com` 这类裸父域放进了允许集，而

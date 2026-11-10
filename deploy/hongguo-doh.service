@@ -1,0 +1,19 @@
+[Unit]
+Description=Hongguo DoH ad-block resolver
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/hongguo-doh
+Environment=DOH_LISTEN_IP=127.0.0.1
+Environment=DOH_LISTEN_PORT=5053
+ExecStart=/usr/bin/python3 /opt/hongguo-doh/doh_server.py
+# 规则刷新零中断：reload = 给主进程发 SIGHUP，doh_server 把全部规则缓存失效，下次请求重读。
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=2
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

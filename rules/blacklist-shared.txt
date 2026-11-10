@@ -1008,3 +1008,34 @@ wesure100.com**
 # auto:public:new-aaid.umeng.com.gds.alibabadns.com 2026-11-10 01:30
 new-aaid.umeng.com.gds.alibabadns.com**
 
+# ---- 2026-11-11 01:3x 红果广告主通道补漏：穿山甲/快手/腾讯/小米/字节广告SDK ----
+# 线上实测（公网DoH端点 118.178.183.90）确认这些广告域此前全部 ALLOW（放行）。
+# 红果短剧为字节系产品，广告主力是穿山甲(Pangle)+字节广告SDK，百度联盟只占一小部分。
+# 这些域与正片CDN(bytecdn/pstatp)无关，是纯广告/竞价/追踪，可安全拦截。
+# is.snssdk.com 兼做字节SDK初始化（含广告配置下发），拦后可能少弹推送/统计，不影响看剧，可秒级回滚。
+
+# 1) 字节/抖音广告 SDK（红果广告初始化主通道；切勿整域名拦 snssdk.com，会误伤视频域 v*/ib*）
+ad.snssdk.com**
+is.snssdk.com**
+adx.snssdk.com**
+ace.snssdk.com**
+
+# 2) 穿山甲(Pangle)国际/新版广告域（已有 **pangolin-sdk 仅覆盖 pangolin-sdk-toutiao-b.com，漏掉 pangle.io 系）
+pangolin.pangle.io**
+ad.pangle.io**
+aduser.pangle.io**
+pangle.hoyoverse.com**
+
+# 3) 快手广告（已有 adkwai.com / open.kuaishou.cn 未覆盖 ad.kuaishou.com 系）
+ad.kuaishou.com**
+neptune.kuaishou.com**
+ad.e.kuaishou.com**
+
+# 4) 腾讯广告（已有 gdt.qq.com 系未覆盖 ad.qq.com / union.qq.com）
+ad.qq.com**
+union.qq.com**
+
+# 5) 小米 / 友盟广告
+ad.xiaomi.com**
+ad.umeng.com**
+

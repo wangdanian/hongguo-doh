@@ -71,6 +71,27 @@ def _get_client():
     return _client
 
 
+def _api_call_with_retry(fn, *args, max_retries=6, base_delay=2.0, **kwargs):
+    """阿里云云助手（RunCommand）偶发限流/网络抖动，做指数退避重试。"""
+    import random
+    last = None
+    for attempt in range(max_retries):
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:  # 限流 / 超时 / 网络：退避后重试
+            last = e
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                sys.stderr.write(
+                    "[ecs_run] API 暂不可用(%s)，%.1fs 后重试(%d/%d)\n"
+                    % (type(e).__name__, delay, attempt + 1, max_retries))
+                sys.stderr.flush()
+                time.sleep(delay)
+            else:
+                raise
+    raise last
+
+
 def run(cmd, timeout=30):
     client, region, iid = _get_client()
     name = "diag-%s" % int(time.time())
@@ -79,17 +100,23 @@ def run(cmd, timeout=30):
         command_content=base64.b64encode(cmd.encode("utf-8")).decode(),
         timeout=timeout,
     )
-    resp = client.create_command(req)
+    resp = _api_call_with_retry(client.create_command, req)
     cid = resp.body.command_id
-    invoke = client.invoke_command(ecs_models.InvokeCommandRequest(
+    invoke = _api_call_with_retry(client.invoke_command, ecs_models.InvokeCommandRequest(
         region_id=region, command_id=cid, instance_id=[iid],
     ))
     inv_id = invoke.body.invoke_id
     for _ in range(int(timeout / 2) + 5):
         time.sleep(2)
-        d = client.describe_invocation_results(ecs_models.DescribeInvocationResultsRequest(
-            region_id=region, invoke_id=inv_id,
-        ))
+        try:
+            d = _api_call_with_retry(
+                client.describe_invocation_results,
+                ecs_models.DescribeInvocationResultsRequest(
+                    region_id=region, invoke_id=inv_id))
+        except Exception as e:
+            sys.stderr.write("[ecs_run] describe 暂不可用，继续等待: %s\n" % e)
+            sys.stderr.flush()
+            continue
         r = d.body.invocation.invocation_results.invocation_result[0]
         state = r.invoke_record_status
         if state == "Finished":

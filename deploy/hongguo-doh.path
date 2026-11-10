@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch doh_server.py and auto-restart the service on source change (zero-effort auto-deploy)
+
+[Path]
+PathModified=/opt/hongguo-doh/doh_server.py
+Unit=hongguo-doh-restart.service
+
+[Install]
+WantedBy=multi-user.target

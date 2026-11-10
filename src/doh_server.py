@@ -1637,6 +1637,23 @@ text-decoration:none;padding:11px 22px;border-radius:10px;font-weight:600">领�
                    "application/json; charset=utf-8")
 
 
+def reload_all_rules():
+    """SIGHUP / systemctl reload：使所有规则缓存失效，下次请求自动重读（零中断、即时生效）。
+
+    规则文件（blacklist/shared/whitelist/force/signatures/upstream）本就是基于
+    mtime 的惰性热加载，但只在「下次请求」才检查。reload 主动把所有缓存 mtime 置空，
+    让紧接着的请求立即重读最新规则，做到「改完/名单刷新后立刻生效」，无需 restart。
+    """
+    for c in (_bl_cache, _sh_cache, _wl_cache, _force_cache, _sig_cache,
+              _upstream_block_cache, _upstream_allow_cache):
+        c["mtime"] = None
+    print("[reload] 全部规则缓存已失效，下次请求将重新读取（零中断）", flush=True)
+
+
+def _on_sighup(signum, frame):
+    reload_all_rules()
+
+
 def main():
     if not os.path.exists(BLACKLIST_FILE):
         with open(BLACKLIST_FILE, "w", encoding="utf-8") as fh:
@@ -1669,6 +1686,7 @@ def main():
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGHUP, _on_sighup)
 
     print("=" * 62, flush=True)
     print(" DoH server online -> http://%s:%d/dns-query" % (LISTEN_IP, LISTEN_PORT), flush=True)
